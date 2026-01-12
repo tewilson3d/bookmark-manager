@@ -49,6 +49,7 @@ func (s *Server) setUpDatabase(dbPath string) error {
 func (s *Server) Serve(addr string) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", s.HandleIndex)
+	mux.HandleFunc("GET /share", s.HandleShare)
 	mux.HandleFunc("GET /extension", s.HandleExtensionPage)
 	mux.HandleFunc("GET /api/bookmarks", s.HandleListBookmarks)
 	mux.HandleFunc("POST /api/bookmarks", s.cors(s.HandleCreateBookmark))
@@ -114,4 +115,20 @@ func (s *Server) HandleExtensionPage(w http.ResponseWriter, r *http.Request) {
 		slog.Warn("render template", "error", err)
 		http.Error(w, "Internal error", 500)
 	}
+}
+
+func (s *Server) HandleShare(w http.ResponseWriter, r *http.Request) {
+	// Handle PWA share target
+	url := r.URL.Query().Get("url")
+	text := r.URL.Query().Get("text")
+	title := r.URL.Query().Get("title")
+	
+	// Sometimes the URL comes in the text field
+	if url == "" && text != "" {
+		url = text
+	}
+	
+	// Redirect to main page with save parameters
+	redirectURL := fmt.Sprintf("/?save=%s&title=%s", url, title)
+	http.Redirect(w, r, redirectURL, http.StatusFound)
 }
