@@ -64,6 +64,7 @@ func (s *Server) Serve(addr string) error {
 	mux.HandleFunc("GET /api/web-search", s.HandleWebSearch)
 	mux.HandleFunc("POST /api/fetch-metadata", s.HandleFetchMetadata)
 	mux.HandleFunc("POST /api/youtube/import", s.HandleYouTubeImport)
+	mux.HandleFunc("POST /api/instagram/import", s.HandleInstagramImport)
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir(s.StaticDir))))
 	mux.HandleFunc("OPTIONS /api/bookmarks", s.cors(func(w http.ResponseWriter, r *http.Request) {}))
 	slog.Info("starting server", "addr", addr)
