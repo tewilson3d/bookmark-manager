@@ -212,5 +212,8 @@ func detectSourceType(url string) string {
 	if strings.Contains(url, "linkedin.com") {
 		return "linkedin"
 	}
+	if strings.Contains(url, "youtube.com") || strings.Contains(url, "youtu.be") {
+		return "youtube"
+	}
 	return "web"
 }

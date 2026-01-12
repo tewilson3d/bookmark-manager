@@ -16,6 +16,7 @@
         .source-web { background: #3b82f6; }
         .source-instagram { background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888); }
         .source-linkedin { background: #0077b5; }
+        .source-youtube { background: #ff0000; }
     </style>
 </head>
 <body class="bg-gray-900 text-white min-h-screen">
@@ -38,6 +39,9 @@
                 </button>
                 <button onclick="loadBookmarks('linkedin')" class="w-full text-left px-3 py-2 rounded hover:bg-gray-700 flex items-center gap-2">
                     <i class="fab fa-linkedin"></i> LinkedIn
+                </button>
+                <button onclick="loadBookmarks('youtube')" class="w-full text-left px-3 py-2 rounded hover:bg-gray-700 flex items-center gap-2">
+                    <i class="fab fa-youtube"></i> YouTube
                 </button>
                 
                 <div class="border-t border-gray-700 my-4"></div>
@@ -198,6 +202,26 @@
                         <strong>On desktop:</strong> Use the Chrome extension on linkedin.com
                     </p>
                 </div>
+
+                <!-- YouTube Import -->
+                <div class="bg-gray-700 rounded-lg p-4">
+                    <h3 class="font-semibold mb-2"><i class="fab fa-youtube mr-2 text-red-500"></i>Import YouTube Playlist</h3>
+                    <p class="text-gray-400 text-sm mb-3">Import all videos from a YouTube playlist at once.</p>
+                    <div class="space-y-2">
+                        <input type="url" id="youtube-playlist-url" placeholder="Paste YouTube playlist URL..." 
+                            class="w-full bg-gray-800 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
+                        <details class="text-sm">
+                            <summary class="text-gray-400 cursor-pointer">Optional: YouTube API Key (for private playlists)</summary>
+                            <input type="text" id="youtube-api-key" placeholder="API Key (optional)" 
+                                class="w-full mt-2 bg-gray-800 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
+                            <p class="text-gray-500 text-xs mt-1">Get a free API key from <a href="https://console.cloud.google.com/apis/credentials" target="_blank" class="text-indigo-400">Google Cloud Console</a></p>
+                        </details>
+                        <button onclick="importYouTubePlaylist()" class="bg-red-600 hover:bg-red-700 px-3 py-2 rounded text-sm w-full">
+                            <i class="fab fa-youtube mr-1"></i> Import Playlist
+                        </button>
+                        <div id="youtube-import-status" class="text-sm hidden"></div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -257,7 +281,8 @@
         
         const sourceClass = `source-${b.source_type}`;
         const sourceIcon = b.source_type === 'instagram' ? 'fab fa-instagram' : 
-                          b.source_type === 'linkedin' ? 'fab fa-linkedin' : 'fas fa-globe';
+                          b.source_type === 'linkedin' ? 'fab fa-linkedin' : 
+                          b.source_type === 'youtube' ? 'fab fa-youtube' : 'fas fa-globe';
         
         card.innerHTML = `
             ${b.image_url ? `<img src="${b.image_url}" class="w-full h-32 object-cover" onerror="this.style.display='none'">` : ''}
@@ -473,6 +498,47 @@
     document.getElementById('web-search-input').addEventListener('keypress', (e) => {
         if (e.key === 'Enter') doWebSearch();
     });
+
+    async function importYouTubePlaylist() {
+        const urlInput = document.getElementById('youtube-playlist-url');
+        const apiKeyInput = document.getElementById('youtube-api-key');
+        const statusDiv = document.getElementById('youtube-import-status');
+        
+        const playlistUrl = urlInput.value.trim();
+        if (!playlistUrl) {
+            alert('Please enter a YouTube playlist URL');
+            return;
+        }
+        
+        statusDiv.className = 'text-sm bg-gray-800 p-2 rounded';
+        statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Importing playlist...';
+        
+        try {
+            const res = await fetch('/api/youtube/import', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    playlist_url: playlistUrl,
+                    api_key: apiKeyInput.value.trim()
+                })
+            });
+            
+            const data = await res.json();
+            
+            if (data.error) {
+                statusDiv.className = 'text-sm bg-red-900 p-2 rounded';
+                statusDiv.innerHTML = '<i class="fas fa-times"></i> ' + data.error;
+            } else {
+                statusDiv.className = 'text-sm bg-green-900 p-2 rounded';
+                statusDiv.innerHTML = `<i class="fas fa-check"></i> Imported ${data.saved} videos (${data.skipped} already existed)`;
+                urlInput.value = '';
+                loadBookmarks('youtube');
+            }
+        } catch (err) {
+            statusDiv.className = 'text-sm bg-red-900 p-2 rounded';
+            statusDiv.innerHTML = '<i class="fas fa-times"></i> Error importing playlist';
+        }
+    }
 
     function showToolsModal() {
         document.getElementById('tools-modal').classList.remove('hidden');
