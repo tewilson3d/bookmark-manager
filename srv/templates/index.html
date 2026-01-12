@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bookmark Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        .source-web { background: #3b82f6; }
+        .source-instagram { background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888); }
+        .source-linkedin { background: #0077b5; }
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+    <div class="flex h-screen">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-gray-800 p-4 flex flex-col">
+            <h1 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                <i class="fas fa-bookmark text-indigo-500"></i> Bookmarks
+            </h1>
+            
+            <nav class="space-y-2 flex-1">
+                <button onclick="loadBookmarks()" class="w-full text-left px-3 py-2 rounded hover:bg-gray-700 flex items-center gap-2">
+                    <i class="fas fa-home"></i> All Bookmarks
+                </button>
+                <button onclick="loadBookmarks('web')" class="w-full text-left px-3 py-2 rounded hover:bg-gray-700 flex items-center gap-2">
+                    <i class="fas fa-globe"></i> Web
+                </button>
+                <button onclick="loadBookmarks('instagram')" class="w-full text-left px-3 py-2 rounded hover:bg-gray-700 flex items-center gap-2">
+                    <i class="fab fa-instagram"></i> Instagram
+                </button>
+                <button onclick="loadBookmarks('linkedin')" class="w-full text-left px-3 py-2 rounded hover:bg-gray-700 flex items-center gap-2">
+                    <i class="fab fa-linkedin"></i> LinkedIn
+                </button>
+                
+                <div class="border-t border-gray-700 my-4"></div>
+                
+                <div class="text-gray-400 text-sm mb-2">Collections</div>
+                <div id="collections-list"></div>
+                
+                <div class="border-t border-gray-700 my-4"></div>
+                
+                <div class="text-gray-400 text-sm mb-2">Tags</div>
+                <div id="tags-list" class="flex flex-wrap gap-1"></div>
+            </nav>
+            
+            <button onclick="showAddModal()" class="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg flex items-center justify-center gap-2 mb-2">
+                <i class="fas fa-plus"></i> Add Bookmark
+            </button>
+            <button onclick="showWebSearchModal()" class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg flex items-center justify-center gap-2">
+                <i class="fas fa-globe"></i> Discover
+            </button>
+        </aside>
+        
+        <!-- Main Content -->
+        <main class="flex-1 flex flex-col overflow-hidden">
+            <!-- Search Bar -->
+            <div class="p-4 bg-gray-800 border-b border-gray-700">
+                <div class="relative max-w-2xl mx-auto">
+                    <input type="text" id="search-input" placeholder="Search bookmarks..." 
+                        class="w-full bg-gray-700 rounded-lg px-4 py-2 pl-10 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                </div>
+            </div>
+            
+            <!-- Bookmarks Grid -->
+            <div class="flex-1 overflow-auto p-6">
+                <div id="bookmarks-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"></div>
+                <div id="loading" class="text-center py-8 hidden">
+                    <i class="fas fa-spinner fa-spin text-2xl"></i>
+                </div>
+                <div id="empty-state" class="text-center py-16 hidden">
+                    <i class="fas fa-bookmark text-6xl text-gray-600 mb-4"></i>
+                    <p class="text-gray-400">No bookmarks yet. Add your first one!</p>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <!-- Add Bookmark Modal -->
+    <div id="add-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+        <div class="bg-gray-800 rounded-xl p-6 w-full max-w-lg mx-4">
+            <h2 class="text-xl font-bold mb-4">Add Bookmark</h2>
+            <form id="add-form" class="space-y-4">
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">URL</label>
+                    <div class="flex gap-2">
+                        <input type="url" name="url" required 
+                            class="flex-1 bg-gray-700 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <button type="button" onclick="fetchMeta()" class="bg-gray-600 hover:bg-gray-500 px-3 py-2 rounded">
+                            <i class="fas fa-magic"></i>
+                        </button>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">Title</label>
+                    <input type="text" name="title" required 
+                        class="w-full bg-gray-700 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">Description</label>
+                    <textarea name="description" rows="2" 
+                        class="w-full bg-gray-700 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">Tags (comma-separated)</label>
+                    <input type="text" name="tags" placeholder="tech, tutorial, reference" 
+                        class="w-full bg-gray-700 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div class="flex justify-end gap-2 pt-4">
+                    <button type="button" onclick="hideAddModal()" class="px-4 py-2 rounded hover:bg-gray-700">Cancel</button>
+                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- View Bookmark Modal -->
+    <div id="view-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+        <div class="bg-gray-800 rounded-xl p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-auto">
+            <div id="view-content"></div>
+        </div>
+    </div>
+
+    <!-- Web Search Modal -->
+    <div id="web-search-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+        <div class="bg-gray-800 rounded-xl p-6 w-full max-w-3xl mx-4 max-h-[90vh] overflow-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold"><i class="fas fa-globe"></i> Discover Similar Content</h2>
+                <button onclick="hideWebSearchModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="mb-4">
+                <div class="flex gap-2">
+                    <input type="text" id="web-search-input" placeholder="Search the web..." 
+                        class="flex-1 bg-gray-700 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <button onclick="doWebSearch()" class="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded">
+                        <i class="fas fa-search"></i> Search
+                    </button>
+                </div>
+            </div>
+            <div id="web-search-results" class="space-y-3"></div>
+        </div>
+    </div>
+
+    <script>
+    let currentSource = '';
+    let debounceTimer;
+
+    async function loadBookmarks(source = '') {
+        currentSource = source;
+        const grid = document.getElementById('bookmarks-grid');
+        const loading = document.getElementById('loading');
+        const empty = document.getElementById('empty-state');
+        
+        loading.classList.remove('hidden');
+        grid.innerHTML = '';
+        
+        const url = source ? `/api/bookmarks?source=${source}` : '/api/bookmarks';
+        const res = await fetch(url);
+        const bookmarks = await res.json();
+        
+        loading.classList.add('hidden');
+        
+        if (!bookmarks || bookmarks.length === 0) {
+            empty.classList.remove('hidden');
+            return;
+        }
+        empty.classList.add('hidden');
+        
+        bookmarks.forEach(b => grid.appendChild(createCard(b)));
+    }
+
+    function createCard(b) {
+        const card = document.createElement('div');
+        card.className = 'bg-gray-800 rounded-lg overflow-hidden hover:ring-2 hover:ring-indigo-500 transition cursor-pointer';
+        card.onclick = () => viewBookmark(b.id);
+        
+        const sourceClass = `source-${b.source_type}`;
+        const sourceIcon = b.source_type === 'instagram' ? 'fab fa-instagram' : 
+                          b.source_type === 'linkedin' ? 'fab fa-linkedin' : 'fas fa-globe';
+        
+        card.innerHTML = `
+            ${b.image_url ? `<img src="${b.image_url}" class="w-full h-32 object-cover" onerror="this.style.display='none'">` : ''}
+            <div class="p-4">
+                <div class="flex items-start gap-2 mb-2">
+                    <span class="${sourceClass} w-6 h-6 rounded flex items-center justify-center text-xs">
+                        <i class="${sourceIcon}"></i>
+                    </span>
+                    <h3 class="font-medium line-clamp-2 flex-1">${escapeHtml(b.title)}</h3>
+                </div>
+                ${b.description ? `<p class="text-gray-400 text-sm line-clamp-2 mb-2">${escapeHtml(b.description)}</p>` : ''}
+                <div class="text-gray-500 text-xs truncate">${new URL(b.url).hostname}</div>
+            </div>
+        `;
+        return card;
+    }
+
+    async function viewBookmark(id) {
+        const res = await fetch(`/api/bookmarks/${id}`);
+        const data = await res.json();
+        const b = data.bookmark;
+        const tags = data.tags || [];
+        
+        document.getElementById('view-content').innerHTML = `
+            <div class="flex justify-between items-start mb-4">
+                <h2 class="text-xl font-bold">${escapeHtml(b.title)}</h2>
+                <button onclick="hideViewModal()" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            ${b.image_url ? `<img src="${b.image_url}" class="w-full h-48 object-cover rounded-lg mb-4" onerror="this.style.display='none'">` : ''}
+            <p class="text-gray-300 mb-4">${escapeHtml(b.description || '')}</p>
+            ${b.summary ? `<div class="bg-gray-700 rounded-lg p-4 mb-4"><strong>Summary:</strong> ${escapeHtml(b.summary)}</div>` : ''}
+            <div class="flex flex-wrap gap-2 mb-4">
+                ${tags.map(t => `<span class="bg-indigo-600 px-2 py-1 rounded text-sm">${escapeHtml(t.name)}</span>`).join('')}
+            </div>
+            <div class="flex gap-2">
+                <a href="${b.url}" target="_blank" class="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded flex items-center gap-2">
+                    <i class="fas fa-external-link-alt"></i> Open
+                </a>
+                <button onclick="deleteBookmark(${b.id})" class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        `;
+        document.getElementById('view-modal').classList.remove('hidden');
+        document.getElementById('view-modal').classList.add('flex');
+    }
+
+    async function deleteBookmark(id) {
+        if (!confirm('Delete this bookmark?')) return;
+        await fetch(`/api/bookmarks/${id}`, { method: 'DELETE' });
+        hideViewModal();
+        loadBookmarks(currentSource);
+    }
+
+    function showAddModal() {
+        document.getElementById('add-modal').classList.remove('hidden');
+        document.getElementById('add-modal').classList.add('flex');
+    }
+
+    function hideAddModal() {
+        document.getElementById('add-modal').classList.add('hidden');
+        document.getElementById('add-modal').classList.remove('flex');
+        document.getElementById('add-form').reset();
+    }
+
+    function hideViewModal() {
+        document.getElementById('view-modal').classList.add('hidden');
+        document.getElementById('view-modal').classList.remove('flex');
+    }
+
+    async function fetchMeta() {
+        const url = document.querySelector('input[name="url"]').value;
+        if (!url) return;
+        
+        const res = await fetch('/api/fetch-metadata', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url })
+        });
+        const meta = await res.json();
+        
+        if (meta.title) document.querySelector('input[name="title"]').value = meta.title;
+        if (meta.description) document.querySelector('textarea[name="description"]').value = meta.description;
+    }
+
+    document.getElementById('add-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const form = e.target;
+        const data = {
+            url: form.url.value,
+            title: form.title.value,
+            description: form.description.value,
+            tags: form.tags.value.split(',').map(t => t.trim()).filter(Boolean)
+        };
+        
+        await fetch('/api/bookmarks', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        
+        hideAddModal();
+        loadBookmarks(currentSource);
+        loadTags();
+    });
+
+    document.getElementById('search-input').addEventListener('input', (e) => {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => searchBookmarks(e.target.value), 300);
+    });
+
+    async function searchBookmarks(query) {
+        if (!query) {
+            loadBookmarks(currentSource);
+            return;
+        }
+        
+        const grid = document.getElementById('bookmarks-grid');
+        const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+        const data = await res.json();
+        
+        grid.innerHTML = '';
+        (data.bookmarks || []).forEach(b => grid.appendChild(createCard(b)));
+    }
+
+    async function loadTags() {
+        const res = await fetch('/api/tags');
+        const tags = await res.json();
+        const container = document.getElementById('tags-list');
+        container.innerHTML = (tags || []).map(t => 
+            `<span class="bg-gray-700 px-2 py-1 rounded text-xs cursor-pointer hover:bg-gray-600">${escapeHtml(t.name)}</span>`
+        ).join('');
+    }
+
+    async function loadCollections() {
+        const res = await fetch('/api/collections');
+        const collections = await res.json();
+        const container = document.getElementById('collections-list');
+        container.innerHTML = (collections || []).map(c => 
+            `<button class="w-full text-left px-3 py-2 rounded hover:bg-gray-700 flex items-center gap-2">
+                ${c.icon || '📁'} ${escapeHtml(c.name)}
+            </button>`
+        ).join('');
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function showWebSearchModal() {
+        document.getElementById('web-search-modal').classList.remove('hidden');
+        document.getElementById('web-search-modal').classList.add('flex');
+        document.getElementById('web-search-input').focus();
+    }
+
+    function hideWebSearchModal() {
+        document.getElementById('web-search-modal').classList.add('hidden');
+        document.getElementById('web-search-modal').classList.remove('flex');
+    }
+
+    async function doWebSearch() {
+        const query = document.getElementById('web-search-input').value;
+        if (!query) return;
+        
+        const resultsDiv = document.getElementById('web-search-results');
+        resultsDiv.innerHTML = '<div class="text-center py-4"><i class="fas fa-spinner fa-spin"></i> Searching...</div>';
+        
+        const res = await fetch(`/api/web-search?q=${encodeURIComponent(query)}`);
+        const data = await res.json();
+        
+        if (!data.results || data.results.length === 0) {
+            resultsDiv.innerHTML = `
+                <p class="text-gray-400">No instant results. Try searching directly:</p>
+                <a href="${data.search_url}" target="_blank" class="text-indigo-400 hover:underline">Search on DuckDuckGo</a>
+            `;
+            return;
+        }
+        
+        resultsDiv.innerHTML = data.results.map(r => `
+            <div class="bg-gray-700 rounded-lg p-4 hover:bg-gray-600">
+                <h3 class="font-medium mb-1">${escapeHtml(r.title)}</h3>
+                ${r.description ? `<p class="text-gray-400 text-sm mb-2">${escapeHtml(r.description)}</p>` : ''}
+                <div class="flex gap-2">
+                    <a href="${r.url}" target="_blank" class="text-indigo-400 text-sm hover:underline">
+                        <i class="fas fa-external-link-alt"></i> Visit
+                    </a>
+                    <button onclick="quickSaveBookmark('${escapeHtml(r.url)}', '${escapeHtml(r.title)}', '${escapeHtml(r.description || '')}')" 
+                        class="text-green-400 text-sm hover:underline">
+                        <i class="fas fa-bookmark"></i> Save
+                    </button>
+                </div>
+            </div>
+        `).join('') + `
+            <div class="mt-4 text-center">
+                <a href="${data.search_url}" target="_blank" class="text-indigo-400 hover:underline">More results on DuckDuckGo</a>
+            </div>
+        `;
+    }
+
+    async function quickSaveBookmark(url, title, description) {
+        await fetch('/api/bookmarks', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url, title, description })
+        });
+        alert('Bookmark saved!');
+        loadBookmarks(currentSource);
+    }
+
+    document.getElementById('web-search-input').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') doWebSearch();
+    });
+
+    // Initial load
+    loadBookmarks();
+    loadTags();
+    loadCollections();
+    </script>
+</body>
+</html>
