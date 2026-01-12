@@ -49,8 +49,9 @@ func (s *Server) setUpDatabase(dbPath string) error {
 func (s *Server) Serve(addr string) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", s.HandleIndex)
+	mux.HandleFunc("GET /extension", s.HandleExtensionPage)
 	mux.HandleFunc("GET /api/bookmarks", s.HandleListBookmarks)
-	mux.HandleFunc("POST /api/bookmarks", s.HandleCreateBookmark)
+	mux.HandleFunc("POST /api/bookmarks", s.cors(s.HandleCreateBookmark))
 	mux.HandleFunc("GET /api/bookmarks/{id}", s.HandleGetBookmark)
 	mux.HandleFunc("PUT /api/bookmarks/{id}", s.HandleUpdateBookmark)
 	mux.HandleFunc("DELETE /api/bookmarks/{id}", s.HandleDeleteBookmark)
@@ -62,6 +63,7 @@ func (s *Server) Serve(addr string) error {
 	mux.HandleFunc("GET /api/web-search", s.HandleWebSearch)
 	mux.HandleFunc("POST /api/fetch-metadata", s.HandleFetchMetadata)
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir(s.StaticDir))))
+	mux.HandleFunc("OPTIONS /api/bookmarks", s.cors(func(w http.ResponseWriter, r *http.Request) {}))
 	slog.Info("starting server", "addr", addr)
 	return http.ListenAndServe(addr, mux)
 }
@@ -92,4 +94,24 @@ func writeError(w http.ResponseWriter, msg string, code int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 	json.NewEncoder(w).Encode(map[string]string{"error": msg})
+}
+
+func (s *Server) cors(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(200)
+			return
+		}
+		next(w, r)
+	}
+}
+
+func (s *Server) HandleExtensionPage(w http.ResponseWriter, r *http.Request) {
+	if err := s.renderTemplate(w, "extension.html", nil); err != nil {
+		slog.Warn("render template", "error", err)
+		http.Error(w, "Internal error", 500)
+	}
 }

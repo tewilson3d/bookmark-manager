@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      width: 350px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1f2937;
+      color: white;
+      padding: 16px;
+    }
+    h1 {
+      font-size: 18px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    h1 svg { width: 24px; height: 24px; fill: #6366f1; }
+    .form-group { margin-bottom: 12px; }
+    label {
+      display: block;
+      font-size: 12px;
+      color: #9ca3af;
+      margin-bottom: 4px;
+    }
+    input, textarea {
+      width: 100%;
+      padding: 8px 12px;
+      border: none;
+      border-radius: 6px;
+      background: #374151;
+      color: white;
+      font-size: 14px;
+    }
+    input:focus, textarea:focus {
+      outline: 2px solid #6366f1;
+    }
+    textarea { resize: vertical; min-height: 60px; }
+    .source-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      margin-bottom: 12px;
+    }
+    .source-web { background: #3b82f6; }
+    .source-instagram { background: linear-gradient(45deg, #f09433, #dc2743, #bc1888); }
+    .source-linkedin { background: #0077b5; }
+    .btn {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-primary {
+      background: #6366f1;
+      color: white;
+    }
+    .btn-primary:hover { background: #4f46e5; }
+    .btn-primary:disabled {
+      background: #4b5563;
+      cursor: not-allowed;
+    }
+    .btn-secondary {
+      background: #374151;
+      color: white;
+      margin-top: 8px;
+    }
+    .btn-secondary:hover { background: #4b5563; }
+    .status {
+      text-align: center;
+      padding: 8px;
+      border-radius: 6px;
+      margin-top: 12px;
+      font-size: 14px;
+    }
+    .status.success { background: #065f46; color: #6ee7b7; }
+    .status.error { background: #7f1d1d; color: #fca5a5; }
+    .settings {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid #374151;
+    }
+    .settings-toggle {
+      font-size: 12px;
+      color: #9ca3af;
+      cursor: pointer;
+      text-align: center;
+    }
+    .settings-content { margin-top: 12px; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <h1>
+    <svg viewBox="0 0 24 24"><path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z"/></svg>
+    Save Bookmark
+  </h1>
+
+  <div id="source-badge" class="source-badge source-web">Web</div>
+
+  <form id="bookmark-form">
+    <div class="form-group">
+      <label>URL</label>
+      <input type="url" id="url" readonly>
+    </div>
+    <div class="form-group">
+      <label>Title</label>
+      <input type="text" id="title" required>
+    </div>
+    <div class="form-group">
+      <label>Description</label>
+      <textarea id="description" rows="2"></textarea>
+    </div>
+    <div class="form-group">
+      <label>Tags (comma-separated)</label>
+      <input type="text" id="tags" placeholder="tech, tutorial, reference">
+    </div>
+    <button type="submit" class="btn btn-primary" id="save-btn">Save Bookmark</button>
+  </form>
+
+  <button class="btn btn-secondary" id="open-app">Open Bookmark Manager</button>
+
+  <div id="status" class="status hidden"></div>
+
+  <div class="settings">
+    <div class="settings-toggle" id="settings-toggle">⚙️ Settings</div>
+    <div class="settings-content hidden" id="settings-content">
+      <div class="form-group">
+        <label>Server URL</label>
+        <input type="url" id="server-url" placeholder="https://bookmark-manager.exe.xyz:8000">
+      </div>
+      <button class="btn btn-secondary" id="save-settings">Save Settings</button>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
