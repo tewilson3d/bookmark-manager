@@ -3,13 +3,12 @@ package srv
 import (
 	"encoding/json"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
 	"srv.exe.dev/db/dbgen"
 )
-
-// analyzeURL is defined in summarize.go
 
 func (s *Server) HandleListBookmarks(w http.ResponseWriter, r *http.Request) {
 	q := dbgen.New(s.DB)
@@ -60,6 +59,11 @@ func (s *Server) HandleCreateBookmark(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.SourceType == "" {
 		req.SourceType = detectSourceType(req.URL)
+	}
+	
+	// Auto-fetch favicon if not provided
+	if req.FaviconURL == "" {
+		req.FaviconURL = getFaviconURL(req.URL)
 	}
 
 	q := dbgen.New(s.DB)
@@ -252,4 +256,22 @@ func detectSourceType(url string) string {
 		return "youtube"
 	}
 	return "web"
+}
+
+// getFaviconURL returns the favicon URL for a given page URL
+func getFaviconURL(pageURL string) string {
+	// Use Google's favicon service - reliable and works for most sites
+	// This returns a 16x16 PNG favicon for any domain
+	parsedURL, err := url.Parse(pageURL)
+	if err != nil {
+		return ""
+	}
+	
+	domain := parsedURL.Host
+	if domain == "" {
+		return ""
+	}
+	
+	// Google's favicon service
+	return "https://www.google.com/s2/favicons?domain=" + domain + "&sz=64"
 }

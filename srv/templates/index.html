@@ -300,13 +300,16 @@
                           b.source_type === 'linkedin' ? 'fab fa-linkedin' : 
                           b.source_type === 'youtube' ? 'fab fa-youtube' : 'fas fa-globe';
         
+        // Use favicon if available, otherwise show source icon
+        const faviconHtml = b.favicon_url 
+            ? `<img src="${b.favicon_url}" class="w-6 h-6 rounded" onerror="this.outerHTML='<span class=\\'${sourceClass} w-6 h-6 rounded flex items-center justify-center text-xs\\'><i class=\\'${sourceIcon}\\'></i></span>'">`
+            : `<span class="${sourceClass} w-6 h-6 rounded flex items-center justify-center text-xs"><i class="${sourceIcon}"></i></span>`;
+        
         card.innerHTML = `
             ${b.image_url ? `<img src="${b.image_url}" class="w-full h-32 object-cover" onerror="this.style.display='none'">` : ''}
             <div class="p-4">
                 <div class="flex items-start gap-2 mb-2">
-                    <span class="${sourceClass} w-6 h-6 rounded flex items-center justify-center text-xs">
-                        <i class="${sourceIcon}"></i>
-                    </span>
+                    ${faviconHtml}
                     <h3 class="font-medium line-clamp-2 flex-1">${escapeHtml(b.title)}</h3>
                 </div>
                 ${b.description ? `<p class="text-gray-400 text-sm line-clamp-2 mb-2">${escapeHtml(b.description)}</p>` : ''}
