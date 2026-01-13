@@ -20,22 +20,19 @@ func (s *Server) HandleSearch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Search local bookmarks using FTS
+	// Search including keywords
+	like := "%" + query + "%"
 	rows, err := s.DB.QueryContext(r.Context(), `
-		SELECT b.* FROM bookmarks b
-		JOIN bookmarks_fts ON b.id = bookmarks_fts.rowid
-		WHERE bookmarks_fts MATCH ?
-		ORDER BY rank
+		SELECT * FROM bookmarks 
+		WHERE title LIKE ? 
+		   OR description LIKE ? 
+		   OR summary LIKE ? 
+		   OR keywords LIKE ?
+		ORDER BY created_at DESC
 		LIMIT 50
-	`, query)
+	`, like, like, like, like)
 	if err != nil {
-		// Fallback to LIKE search
-		q := dbgen.New(s.DB)
-		like := "%" + query + "%"
-		bookmarks, _ := q.SearchBookmarksFTS(r.Context(), dbgen.SearchBookmarksFTSParams{
-			Title: like, Description: &like, Summary: &like, Limit: 50, Offset: 0,
-		})
-		writeJSON(w, map[string]any{"bookmarks": bookmarks})
+		writeError(w, err.Error(), 500)
 		return
 	}
 	defer rows.Close()
@@ -43,8 +40,9 @@ func (s *Server) HandleSearch(w http.ResponseWriter, r *http.Request) {
 	var bookmarks []dbgen.Bookmark
 	for rows.Next() {
 		var b dbgen.Bookmark
+		var keywords *string
 		if err := rows.Scan(&b.ID, &b.Url, &b.Title, &b.Description, &b.Summary,
-			&b.SourceType, &b.FaviconUrl, &b.ImageUrl, &b.CreatedAt, &b.UpdatedAt); err == nil {
+			&b.SourceType, &b.FaviconUrl, &b.ImageUrl, &b.CreatedAt, &b.UpdatedAt, &keywords); err == nil {
 			bookmarks = append(bookmarks, b)
 		}
 	}
