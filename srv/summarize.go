@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	neturl "net/url"
 	"regexp"
 	"sort"
 	"strings"
@@ -83,71 +82,14 @@ func analyzeURL(url string) (*ContentAnalysis, error) {
 	// Generate summary from metadata and clean content
 	summary := generateSummary(html, url)
 
-	// Extract keywords from multiple sources
-	keywords := extractAllKeywords(html, url)
+	// Extract text for keywords
+	text := extractText(html)
+	keywords := extractKeywords(text)
 
 	return &ContentAnalysis{
 		Summary:  summary,
 		Keywords: keywords,
 	}, nil
-}
-
-// extractAllKeywords gets keywords from page content, metadata, title, and URL
-func extractAllKeywords(html, url string) []string {
-	var allText strings.Builder
-	
-	// 1. Add title
-	if title := extractMetaContent(html, "og:title"); title != "" {
-		allText.WriteString(title + " ")
-	}
-	re := regexp.MustCompile(`(?i)<title[^>]*>([^<]+)</title>`)
-	if m := re.FindStringSubmatch(html); len(m) > 1 {
-		allText.WriteString(m[1] + " ")
-	}
-	
-	// 2. Add meta description
-	if desc := extractMetaContent(html, "og:description"); desc != "" {
-		allText.WriteString(desc + " ")
-	}
-	if desc := extractMetaContent(html, "description"); desc != "" {
-		allText.WriteString(desc + " ")
-	}
-	
-	// 3. Add meta keywords if present
-	if kw := extractMetaContent(html, "keywords"); kw != "" {
-		allText.WriteString(kw + " ")
-	}
-	
-	// 4. Add URL path components
-	if u, err := neturl.Parse(url); err == nil {
-		path := strings.ReplaceAll(u.Path, "/", " ")
-		path = strings.ReplaceAll(path, "-", " ")
-		path = strings.ReplaceAll(path, "_", " ")
-		allText.WriteString(path + " ")
-		// Add query params
-		for key, values := range u.Query() {
-			allText.WriteString(key + " ")
-			for _, v := range values {
-				allText.WriteString(v + " ")
-			}
-		}
-	}
-	
-	// 5. Add headings (h1, h2)
-	headingRe := regexp.MustCompile(`(?i)<h[12][^>]*>([^<]+)</h[12]>`)
-	headings := headingRe.FindAllStringSubmatch(html, 10)
-	for _, h := range headings {
-		if len(h) > 1 {
-			allText.WriteString(decodeHTMLEntities(h[1]) + " ")
-		}
-	}
-	
-	// 6. Add extracted page text
-	pageText := extractText(html)
-	allText.WriteString(pageText)
-	
-	// Extract keywords from combined text
-	return extractKeywords(allText.String())
 }
 
 func extractText(html string) string {
@@ -190,38 +132,6 @@ func extractText(html string) string {
 	re = regexp.MustCompile(`\s+`)
 	text = re.ReplaceAllString(text, " ")
 
-	return strings.TrimSpace(text)
-}
-
-func cleanTextForKeywords(text string) string {
-	// Remove JavaScript-like patterns
-	re := regexp.MustCompile(`(?i)(function|window\.|document\.|var\s|const\s|let\s|=>|\{\{|\}\}|\[\[|\]\])`)
-	text = re.ReplaceAllString(text, " ")
-	
-	// Remove URLs
-	re = regexp.MustCompile(`https?://[^\s]+`)
-	text = re.ReplaceAllString(text, " ")
-	
-	// Remove hex colors and codes
-	re = regexp.MustCompile(`#[0-9a-fA-F]{3,8}`)
-	text = re.ReplaceAllString(text, " ")
-	
-	// Remove JSON-like structures
-	re = regexp.MustCompile(`"[^"]+"\s*:`)
-	text = re.ReplaceAllString(text, " ")
-	
-	// Remove unicode escape sequences like u0026
-	re = regexp.MustCompile(`u[0-9a-fA-F]{4}`)
-	text = re.ReplaceAllString(text, " ")
-	
-	// Remove base64-like strings
-	re = regexp.MustCompile(`[A-Za-z0-9+/]{20,}={0,2}`)
-	text = re.ReplaceAllString(text, " ")
-	
-	// Normalize whitespace
-	re = regexp.MustCompile(`\s+`)
-	text = re.ReplaceAllString(text, " ")
-	
 	return strings.TrimSpace(text)
 }
 
@@ -425,10 +335,8 @@ func extractFirstParagraph(html string) string {
 }
 
 func extractKeywords(text string) []string {
-	// Clean the text first - remove obvious code patterns
-	text = cleanTextForKeywords(text)
-	
-	if len(text) < 50 {
+	// Skip if text looks like code
+	if strings.Contains(text, "function") || strings.Contains(text, "window.") {
 		return []string{}
 	}
 
@@ -456,18 +364,8 @@ func extractKeywords(text string) []string {
 		if numCount > len(word)/2 {
 			continue
 		}
-		// Skip common code/tech words
-		codeWords := []string{
-			"script", "style", "div", "span", "class", "href", "src", "img", "onclick", "onload",
-			"true", "false", "null", "undefined", "function", "return", "var", "const", "let",
-			"html", "head", "body", "meta", "link", "type", "text", "javascript", "css",
-			"width", "height", "display", "none", "block", "inline", "flex",
-			"player", "enable", "disable", "config", "data", "value", "string",
-			"http", "https", "www", "com", "org", "net", "html", "json", "xml",
-			"utf", "charset", "encoding", "content", "viewport", "initial", "scale",
-			"min", "max", "cap", "delay", "seek", "live", "playback", "buffer",
-			"api", "key", "token", "session", "cookie", "cache", "web", "app",
-		}
+		// Skip common code words
+		codeWords := []string{"script", "style", "div", "span", "class", "href", "src", "img", "onclick", "onload"}
 		isCode := false
 		for _, cw := range codeWords {
 			if word == cw {
@@ -476,10 +374,6 @@ func extractKeywords(text string) []string {
 			}
 		}
 		if isCode {
-			continue
-		}
-		// Skip words that look like encoded values
-		if strings.HasPrefix(word, "u00") || strings.HasPrefix(word, "x00") {
 			continue
 		}
 		wordCounts[word]++
