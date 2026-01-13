@@ -172,9 +172,9 @@
                             </div>
                             <div>
                                 <label class="block text-gray-400 text-xs mb-1">Personal Access Token</label>
-                                <input type="password" id="github-token" placeholder="ghp_xxxxxxxxxxxx" 
-                                    class="w-full bg-gray-800 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                                <p class="text-gray-500 text-xs mt-1">Create at <a href="https://github.com/settings/tokens" target="_blank" class="text-indigo-400">GitHub Settings → Tokens</a> (need repo scope)</p>
+                                <input type="text" id="github-token" placeholder="ghp_xxxxxxxxxxxx" 
+                                    class="w-full bg-gray-800 rounded px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                <p class="text-gray-500 text-xs mt-1">Create at <a href="https://github.com/settings/tokens/new" target="_blank" class="text-indigo-400">GitHub Settings → Tokens</a> (need repo scope)</p>
                             </div>
                             <div>
                                 <label class="block text-gray-400 text-xs mb-1">Branch</label>
@@ -687,8 +687,8 @@
     function loadGitHubConfig() {
         fetch('/api/github/config').then(r => r.json()).then(data => {
             if (data.repo) document.getElementById('github-repo').value = data.repo;
+            if (data.token) document.getElementById('github-token').value = data.token;
             if (data.branch) document.getElementById('github-branch').value = data.branch;
-            // Token is not returned for security
         }).catch(() => {});
     }
 

@@ -22,7 +22,7 @@ func (s *Server) HandleGitHubConfig(w http.ResponseWriter, r *http.Request) {
 	configPath := filepath.Join(getProjectRoot(), gitConfigFile)
 	
 	if r.Method == "GET" {
-		// Return config (without token for security)
+		// Return full config including token
 		data, err := os.ReadFile(configPath)
 		if err != nil {
 			writeJSON(w, GitHubConfig{Branch: "main"})
@@ -30,10 +30,6 @@ func (s *Server) HandleGitHubConfig(w http.ResponseWriter, r *http.Request) {
 		}
 		var config GitHubConfig
 		json.Unmarshal(data, &config)
-		// Show that token exists but don't expose it
-		if config.Token != "" {
-			config.Token = "••••••••" // Indicate token is saved
-		}
 		writeJSON(w, config)
 		return
 	}
@@ -54,8 +50,8 @@ func (s *Server) HandleGitHubConfig(w http.ResponseWriter, r *http.Request) {
 	var existing GitHubConfig
 	json.Unmarshal(existingData, &existing)
 	
-	// Keep existing token if new one not provided or is the masked value
-	if config.Token == "" || config.Token == "••••••••" {
+	// Keep existing token if new one not provided
+	if config.Token == "" {
 		config.Token = existing.Token
 	}
 	
