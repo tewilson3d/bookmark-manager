@@ -2,6 +2,7 @@ package srv
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 	"os/exec"
@@ -29,7 +30,10 @@ func (s *Server) HandleGitHubConfig(w http.ResponseWriter, r *http.Request) {
 		}
 		var config GitHubConfig
 		json.Unmarshal(data, &config)
-		config.Token = "" // Don't expose token
+		// Show that token exists but don't expose it
+		if config.Token != "" {
+			config.Token = "••••••••" // Indicate token is saved
+		}
 		writeJSON(w, config)
 		return
 	}
@@ -50,7 +54,8 @@ func (s *Server) HandleGitHubConfig(w http.ResponseWriter, r *http.Request) {
 	var existing GitHubConfig
 	json.Unmarshal(existingData, &existing)
 	
-	if config.Token == "" {
+	// Keep existing token if new one not provided or is the masked value
+	if config.Token == "" || config.Token == "••••••••" {
 		config.Token = existing.Token
 	}
 	
@@ -61,44 +66,27 @@ func (s *Server) HandleGitHubConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	// Configure git remote if repo changed
-	if config.Repo != "" {
-		projectRoot := getProjectRoot()
-		
-		// Setup remote with token embedded for auth
-		remoteURL := config.Repo
-		if config.Token != "" && strings.HasPrefix(remoteURL, "https://") {
-			// Insert token into URL: https://token@github.com/...
-			remoteURL = strings.Replace(remoteURL, "https://", "https://"+config.Token+"@", 1)
-		}
-		
-		// Check if remote exists
-		cmd := exec.Command("git", "remote", "get-url", "origin")
-		cmd.Dir = projectRoot
-		if err := cmd.Run(); err != nil {
-			// Add remote
-			cmd = exec.Command("git", "remote", "add", "origin", remoteURL)
-			cmd.Dir = projectRoot
-			cmd.Run()
-		} else {
-			// Update remote
-			cmd = exec.Command("git", "remote", "set-url", "origin", remoteURL)
-			cmd.Dir = projectRoot
-			cmd.Run()
-		}
-	}
-	
-	writeJSON(w, map[string]string{"status": "ok"})
+	writeJSON(w, map[string]string{"status": "ok", "message": "Configuration saved!"})
 }
 
 func (s *Server) HandleGitHubPull(w http.ResponseWriter, r *http.Request) {
 	projectRoot := getProjectRoot()
-	
-	// Load config for branch
 	config := loadGitConfig()
+	
+	if config.Repo == "" {
+		writeError(w, "No repository configured. Please save configuration first.", 400)
+		return
+	}
+	
 	branch := config.Branch
 	if branch == "" {
 		branch = "main"
+	}
+	
+	// Setup git remote with auth
+	if err := setupGitRemote(projectRoot, config); err != nil {
+		writeError(w, "Failed to setup remote: "+err.Error(), 500)
+		return
 	}
 	
 	// Git pull
@@ -111,7 +99,7 @@ func (s *Server) HandleGitHubPull(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	writeJSON(w, map[string]string{"message": string(output)})
+	writeJSON(w, map[string]string{"message": "Pull successful! " + string(output)})
 }
 
 func (s *Server) HandleGitHubPush(w http.ResponseWriter, r *http.Request) {
@@ -129,9 +117,26 @@ func (s *Server) HandleGitHubPush(w http.ResponseWriter, r *http.Request) {
 	
 	projectRoot := getProjectRoot()
 	config := loadGitConfig()
+	
+	if config.Repo == "" {
+		writeError(w, "No repository configured. Please save configuration first.", 400)
+		return
+	}
+	
+	if config.Token == "" {
+		writeError(w, "No access token configured. Please add your GitHub token.", 400)
+		return
+	}
+	
 	branch := config.Branch
 	if branch == "" {
 		branch = "main"
+	}
+	
+	// Setup git remote with auth
+	if err := setupGitRemote(projectRoot, config); err != nil {
+		writeError(w, "Failed to setup remote: "+err.Error(), 500)
+		return
 	}
 	
 	// Git add all changes
@@ -145,10 +150,10 @@ func (s *Server) HandleGitHubPush(w http.ResponseWriter, r *http.Request) {
 	// Git commit
 	cmd = exec.Command("git", "commit", "-m", req.Message)
 	cmd.Dir = projectRoot
-	cmd.CombinedOutput() // Ignore error if nothing to commit
+	commitOutput, _ := cmd.CombinedOutput() // May fail if nothing to commit
 	
 	// Git push
-	cmd = exec.Command("git", "push", "origin", branch)
+	cmd = exec.Command("git", "push", "-u", "origin", branch)
 	cmd.Dir = projectRoot
 	output, err := cmd.CombinedOutput()
 	
@@ -157,11 +162,45 @@ func (s *Server) HandleGitHubPush(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	writeJSON(w, map[string]string{"message": "Pushed successfully"})
+	result := "Push successful!"
+	if strings.Contains(string(commitOutput), "nothing to commit") {
+		result = "Nothing new to commit. " + result
+	}
+	
+	writeJSON(w, map[string]string{"message": result})
+}
+
+func setupGitRemote(projectRoot string, config GitHubConfig) error {
+	// Build authenticated URL
+	remoteURL := config.Repo
+	if config.Token != "" && strings.HasPrefix(remoteURL, "https://github.com") {
+		// Format: https://TOKEN@github.com/user/repo.git
+		remoteURL = strings.Replace(remoteURL, "https://github.com", "https://"+config.Token+"@github.com", 1)
+	}
+	
+	// Check if origin exists
+	cmd := exec.Command("git", "remote", "get-url", "origin")
+	cmd.Dir = projectRoot
+	if err := cmd.Run(); err != nil {
+		// Add remote
+		cmd = exec.Command("git", "remote", "add", "origin", remoteURL)
+		cmd.Dir = projectRoot
+		if output, err := cmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("failed to add remote: %s", output)
+		}
+	} else {
+		// Update remote URL
+		cmd = exec.Command("git", "remote", "set-url", "origin", remoteURL)
+		cmd.Dir = projectRoot
+		if output, err := cmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("failed to update remote: %s", output)
+		}
+	}
+	
+	return nil
 }
 
 func getProjectRoot() string {
-	// Return the project root directory
 	return "/home/exedev/bookmark-manager"
 }
 
