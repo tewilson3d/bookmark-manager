@@ -73,7 +73,7 @@ func (q *Queries) CountBookmarksInCollection(ctx context.Context, collectionID i
 const createBookmark = `-- name: CreateBookmark :one
 INSERT INTO bookmarks (url, title, description, summary, source_type, favicon_url, image_url, created_at, updated_at)
 VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-RETURNING id, url, title, description, summary, source_type, favicon_url, image_url, created_at, updated_at
+RETURNING id, url, title, description, summary, source_type, favicon_url, image_url, created_at, updated_at, keywords
 `
 
 type CreateBookmarkParams struct {
@@ -108,6 +108,7 @@ func (q *Queries) CreateBookmark(ctx context.Context, arg CreateBookmarkParams) 
 		&i.ImageUrl,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Keywords,
 	)
 	return i, err
 }
@@ -184,7 +185,7 @@ func (q *Queries) DeleteTag(ctx context.Context, id int64) error {
 }
 
 const getBookmark = `-- name: GetBookmark :one
-SELECT id, url, title, description, summary, source_type, favicon_url, image_url, created_at, updated_at FROM bookmarks WHERE id = ?
+SELECT id, url, title, description, summary, source_type, favicon_url, image_url, created_at, updated_at, keywords FROM bookmarks WHERE id = ?
 `
 
 func (q *Queries) GetBookmark(ctx context.Context, id int64) (Bookmark, error) {
@@ -201,12 +202,13 @@ func (q *Queries) GetBookmark(ctx context.Context, id int64) (Bookmark, error) {
 		&i.ImageUrl,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Keywords,
 	)
 	return i, err
 }
 
 const getBookmarkByURL = `-- name: GetBookmarkByURL :one
-SELECT id, url, title, description, summary, source_type, favicon_url, image_url, created_at, updated_at FROM bookmarks WHERE url = ?
+SELECT id, url, title, description, summary, source_type, favicon_url, image_url, created_at, updated_at, keywords FROM bookmarks WHERE url = ?
 `
 
 func (q *Queries) GetBookmarkByURL(ctx context.Context, url string) (Bookmark, error) {
@@ -223,6 +225,7 @@ func (q *Queries) GetBookmarkByURL(ctx context.Context, url string) (Bookmark, e
 		&i.ImageUrl,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Keywords,
 	)
 	return i, err
 }
@@ -292,7 +295,7 @@ func (q *Queries) GetBookmarkTags(ctx context.Context, bookmarkID int64) ([]Tag,
 }
 
 const getBookmarksByTag = `-- name: GetBookmarksByTag :many
-SELECT b.id, b.url, b.title, b.description, b.summary, b.source_type, b.favicon_url, b.image_url, b.created_at, b.updated_at FROM bookmarks b
+SELECT b.id, b.url, b.title, b.description, b.summary, b.source_type, b.favicon_url, b.image_url, b.created_at, b.updated_at, b.keywords FROM bookmarks b
 JOIN bookmark_tags bt ON b.id = bt.bookmark_id
 WHERE bt.tag_id = ?
 ORDER BY b.created_at DESC
@@ -325,6 +328,7 @@ func (q *Queries) GetBookmarksByTag(ctx context.Context, arg GetBookmarksByTagPa
 			&i.ImageUrl,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Keywords,
 		); err != nil {
 			return nil, err
 		}
@@ -340,7 +344,7 @@ func (q *Queries) GetBookmarksByTag(ctx context.Context, arg GetBookmarksByTagPa
 }
 
 const getBookmarksInCollection = `-- name: GetBookmarksInCollection :many
-SELECT b.id, b.url, b.title, b.description, b.summary, b.source_type, b.favicon_url, b.image_url, b.created_at, b.updated_at FROM bookmarks b
+SELECT b.id, b.url, b.title, b.description, b.summary, b.source_type, b.favicon_url, b.image_url, b.created_at, b.updated_at, b.keywords FROM bookmarks b
 JOIN bookmark_collections bc ON b.id = bc.bookmark_id
 WHERE bc.collection_id = ?
 ORDER BY b.created_at DESC
@@ -373,6 +377,7 @@ func (q *Queries) GetBookmarksInCollection(ctx context.Context, arg GetBookmarks
 			&i.ImageUrl,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Keywords,
 		); err != nil {
 			return nil, err
 		}
@@ -427,7 +432,7 @@ func (q *Queries) GetTagByName(ctx context.Context, name string) (Tag, error) {
 }
 
 const listBookmarks = `-- name: ListBookmarks :many
-SELECT id, url, title, description, summary, source_type, favicon_url, image_url, created_at, updated_at FROM bookmarks ORDER BY created_at DESC LIMIT ? OFFSET ?
+SELECT id, url, title, description, summary, source_type, favicon_url, image_url, created_at, updated_at, keywords FROM bookmarks ORDER BY created_at DESC LIMIT ? OFFSET ?
 `
 
 type ListBookmarksParams struct {
@@ -455,6 +460,7 @@ func (q *Queries) ListBookmarks(ctx context.Context, arg ListBookmarksParams) ([
 			&i.ImageUrl,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Keywords,
 		); err != nil {
 			return nil, err
 		}
@@ -470,7 +476,7 @@ func (q *Queries) ListBookmarks(ctx context.Context, arg ListBookmarksParams) ([
 }
 
 const listBookmarksBySource = `-- name: ListBookmarksBySource :many
-SELECT id, url, title, description, summary, source_type, favicon_url, image_url, created_at, updated_at FROM bookmarks WHERE source_type = ? ORDER BY created_at DESC LIMIT ? OFFSET ?
+SELECT id, url, title, description, summary, source_type, favicon_url, image_url, created_at, updated_at, keywords FROM bookmarks WHERE source_type = ? ORDER BY created_at DESC LIMIT ? OFFSET ?
 `
 
 type ListBookmarksBySourceParams struct {
@@ -499,6 +505,7 @@ func (q *Queries) ListBookmarksBySource(ctx context.Context, arg ListBookmarksBy
 			&i.ImageUrl,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Keywords,
 		); err != nil {
 			return nil, err
 		}
@@ -602,7 +609,7 @@ func (q *Queries) RemoveTagFromBookmark(ctx context.Context, arg RemoveTagFromBo
 }
 
 const searchBookmarksFTS = `-- name: SearchBookmarksFTS :many
-SELECT id, url, title, description, summary, source_type, favicon_url, image_url, created_at, updated_at FROM bookmarks 
+SELECT id, url, title, description, summary, source_type, favicon_url, image_url, created_at, updated_at, keywords FROM bookmarks 
 WHERE title LIKE ? OR description LIKE ? OR summary LIKE ?
 ORDER BY created_at DESC
 LIMIT ? OFFSET ?
@@ -643,6 +650,7 @@ func (q *Queries) SearchBookmarksFTS(ctx context.Context, arg SearchBookmarksFTS
 			&i.ImageUrl,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Keywords,
 		); err != nil {
 			return nil, err
 		}
@@ -664,7 +672,7 @@ UPDATE bookmarks SET
     summary = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
-RETURNING id, url, title, description, summary, source_type, favicon_url, image_url, created_at, updated_at
+RETURNING id, url, title, description, summary, source_type, favicon_url, image_url, created_at, updated_at, keywords
 `
 
 type UpdateBookmarkParams struct {
@@ -693,6 +701,41 @@ func (q *Queries) UpdateBookmark(ctx context.Context, arg UpdateBookmarkParams) 
 		&i.ImageUrl,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Keywords,
+	)
+	return i, err
+}
+
+const updateBookmarkAnalysis = `-- name: UpdateBookmarkAnalysis :one
+UPDATE bookmarks SET
+    summary = ?,
+    keywords = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, url, title, description, summary, source_type, favicon_url, image_url, created_at, updated_at, keywords
+`
+
+type UpdateBookmarkAnalysisParams struct {
+	Summary  *string `json:"summary"`
+	Keywords *string `json:"keywords"`
+	ID       int64   `json:"id"`
+}
+
+func (q *Queries) UpdateBookmarkAnalysis(ctx context.Context, arg UpdateBookmarkAnalysisParams) (Bookmark, error) {
+	row := q.db.QueryRowContext(ctx, updateBookmarkAnalysis, arg.Summary, arg.Keywords, arg.ID)
+	var i Bookmark
+	err := row.Scan(
+		&i.ID,
+		&i.Url,
+		&i.Title,
+		&i.Description,
+		&i.Summary,
+		&i.SourceType,
+		&i.FaviconUrl,
+		&i.ImageUrl,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Keywords,
 	)
 	return i, err
 }

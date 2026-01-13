@@ -9,6 +9,8 @@ import (
 	"srv.exe.dev/db/dbgen"
 )
 
+// analyzeURL is defined in summarize.go
+
 func (s *Server) HandleListBookmarks(w http.ResponseWriter, r *http.Request) {
 	q := dbgen.New(s.DB)
 	limit, _ := strconv.ParseInt(r.URL.Query().Get("limit"), 10, 64)
@@ -203,6 +205,40 @@ func strPtr(s string) *string {
 		return nil
 	}
 	return &s
+}
+
+func (s *Server) HandleAnalyzeBookmark(w http.ResponseWriter, r *http.Request) {
+	id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	q := dbgen.New(s.DB)
+	
+	bookmark, err := q.GetBookmark(r.Context(), id)
+	if err != nil {
+		writeError(w, "bookmark not found", 404)
+		return
+	}
+	
+	analysis, err := analyzeURL(bookmark.Url)
+	if err != nil {
+		writeError(w, "failed to analyze: "+err.Error(), 500)
+		return
+	}
+	
+	// Update bookmark with analysis
+	keywordsJSON, _ := json.Marshal(analysis.Keywords)
+	updated, err := q.UpdateBookmarkAnalysis(r.Context(), dbgen.UpdateBookmarkAnalysisParams{
+		ID:       id,
+		Summary:  &analysis.Summary,
+		Keywords: strPtr(string(keywordsJSON)),
+	})
+	if err != nil {
+		writeError(w, "failed to save: "+err.Error(), 500)
+		return
+	}
+	
+	writeJSON(w, map[string]any{
+		"bookmark": updated,
+		"keywords": analysis.Keywords,
+	})
 }
 
 func detectSourceType(url string) string {

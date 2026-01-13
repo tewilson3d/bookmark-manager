@@ -24,6 +24,14 @@ UPDATE bookmarks SET
 WHERE id = ?
 RETURNING *;
 
+-- name: UpdateBookmarkAnalysis :one
+UPDATE bookmarks SET
+    summary = ?,
+    keywords = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING *;
+
 -- name: DeleteBookmark :exec
 DELETE FROM bookmarks WHERE id = ?;
 

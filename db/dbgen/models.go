@@ -19,6 +19,7 @@ type Bookmark struct {
 	ImageUrl    *string   `json:"image_url"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
+	Keywords    *string   `json:"keywords"`
 }
 
 type BookmarkCollection struct {
