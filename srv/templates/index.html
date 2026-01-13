@@ -158,6 +158,45 @@
                     <div id="generate-all-status" class="text-sm mt-2 hidden"></div>
                 </div>
 
+                <!-- GitHub Integration -->
+                <div class="bg-gray-700 rounded-lg p-4">
+                    <h3 class="font-semibold mb-2"><i class="fab fa-github mr-2"></i>GitHub Integration</h3>
+                    <p class="text-gray-400 text-sm mb-3">Connect to GitHub to backup and sync your bookmark manager code.</p>
+                    <details>
+                        <summary class="text-indigo-400 text-sm cursor-pointer mb-2">Configure GitHub Repository</summary>
+                        <div class="mt-3 space-y-3">
+                            <div>
+                                <label class="block text-gray-400 text-xs mb-1">Repository URL</label>
+                                <input type="text" id="github-repo" placeholder="https://github.com/username/repo.git" 
+                                    class="w-full bg-gray-800 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block text-gray-400 text-xs mb-1">Personal Access Token</label>
+                                <input type="password" id="github-token" placeholder="ghp_xxxxxxxxxxxx" 
+                                    class="w-full bg-gray-800 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                <p class="text-gray-500 text-xs mt-1">Create at <a href="https://github.com/settings/tokens" target="_blank" class="text-indigo-400">GitHub Settings → Tokens</a> (need repo scope)</p>
+                            </div>
+                            <div>
+                                <label class="block text-gray-400 text-xs mb-1">Branch</label>
+                                <input type="text" id="github-branch" placeholder="main" value="main"
+                                    class="w-full bg-gray-800 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <button onclick="saveGitHubConfig()" class="bg-gray-600 hover:bg-gray-500 px-3 py-2 rounded text-sm w-full">
+                                <i class="fas fa-save mr-1"></i> Save Configuration
+                            </button>
+                            <div class="flex gap-2">
+                                <button onclick="gitPull()" class="flex-1 bg-blue-600 hover:bg-blue-700 px-3 py-2 rounded text-sm">
+                                    <i class="fas fa-download mr-1"></i> Pull
+                                </button>
+                                <button onclick="gitPush()" class="flex-1 bg-green-600 hover:bg-green-700 px-3 py-2 rounded text-sm">
+                                    <i class="fas fa-upload mr-1"></i> Push
+                                </button>
+                            </div>
+                            <div id="github-status" class="text-sm hidden"></div>
+                        </div>
+                    </details>
+                </div>
+
                 <!-- Chrome Extension -->
                 <div class="bg-gray-700 rounded-lg p-4">
                     <h3 class="font-semibold mb-2"><i class="fab fa-chrome mr-2"></i>Chrome Extension</h3>
@@ -643,6 +682,110 @@
     document.getElementById('web-search-input').addEventListener('keypress', (e) => {
         if (e.key === 'Enter') doWebSearch();
     });
+
+    // GitHub Integration
+    function loadGitHubConfig() {
+        fetch('/api/github/config').then(r => r.json()).then(data => {
+            if (data.repo) document.getElementById('github-repo').value = data.repo;
+            if (data.branch) document.getElementById('github-branch').value = data.branch;
+            // Token is not returned for security
+        }).catch(() => {});
+    }
+
+    async function saveGitHubConfig() {
+        const repo = document.getElementById('github-repo').value.trim();
+        const token = document.getElementById('github-token').value.trim();
+        const branch = document.getElementById('github-branch').value.trim() || 'main';
+        const statusDiv = document.getElementById('github-status');
+        
+        if (!repo) {
+            alert('Please enter a repository URL');
+            return;
+        }
+        
+        statusDiv.className = 'text-sm bg-gray-800 p-2 rounded';
+        statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving configuration...';
+        
+        try {
+            const res = await fetch('/api/github/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ repo, token, branch })
+            });
+            const data = await res.json();
+            
+            if (data.error) {
+                statusDiv.className = 'text-sm bg-red-900 p-2 rounded';
+                statusDiv.innerHTML = '<i class="fas fa-times"></i> ' + data.error;
+            } else {
+                statusDiv.className = 'text-sm bg-green-900 p-2 rounded';
+                statusDiv.innerHTML = '<i class="fas fa-check"></i> Configuration saved!';
+            }
+        } catch (err) {
+            statusDiv.className = 'text-sm bg-red-900 p-2 rounded';
+            statusDiv.innerHTML = '<i class="fas fa-times"></i> Error saving configuration';
+        }
+    }
+
+    async function gitPull() {
+        const statusDiv = document.getElementById('github-status');
+        statusDiv.className = 'text-sm bg-gray-800 p-2 rounded';
+        statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Pulling from GitHub...';
+        
+        try {
+            const res = await fetch('/api/github/pull', { method: 'POST' });
+            const data = await res.json();
+            
+            if (data.error) {
+                statusDiv.className = 'text-sm bg-red-900 p-2 rounded';
+                statusDiv.innerHTML = '<i class="fas fa-times"></i> ' + data.error;
+            } else {
+                statusDiv.className = 'text-sm bg-green-900 p-2 rounded';
+                statusDiv.innerHTML = '<i class="fas fa-check"></i> ' + (data.message || 'Pull successful!');
+            }
+        } catch (err) {
+            statusDiv.className = 'text-sm bg-red-900 p-2 rounded';
+            statusDiv.innerHTML = '<i class="fas fa-times"></i> Error pulling from GitHub';
+        }
+    }
+
+    async function gitPush() {
+        const statusDiv = document.getElementById('github-status');
+        const message = prompt('Enter commit message:', 'Update bookmark manager');
+        if (!message) return;
+        
+        statusDiv.className = 'text-sm bg-gray-800 p-2 rounded';
+        statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Pushing to GitHub...';
+        
+        try {
+            const res = await fetch('/api/github/push', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message })
+            });
+            const data = await res.json();
+            
+            if (data.error) {
+                statusDiv.className = 'text-sm bg-red-900 p-2 rounded';
+                statusDiv.innerHTML = '<i class="fas fa-times"></i> ' + data.error;
+            } else {
+                statusDiv.className = 'text-sm bg-green-900 p-2 rounded';
+                statusDiv.innerHTML = '<i class="fas fa-check"></i> ' + (data.message || 'Push successful!');
+            }
+        } catch (err) {
+            statusDiv.className = 'text-sm bg-red-900 p-2 rounded';
+            statusDiv.innerHTML = '<i class="fas fa-times"></i> Error pushing to GitHub';
+        }
+    }
+
+    // Load GitHub config when tools modal opens
+    const origShowToolsModal = showToolsModal;
+    showToolsModal = function() {
+        origShowToolsModal ? origShowToolsModal() : null;
+        document.getElementById('tools-modal').classList.remove('hidden');
+        document.getElementById('tools-modal').classList.add('flex');
+        loadGitHubConfig();
+    };
 
     async function generateAllMetadata() {
         const btn = document.getElementById('generate-all-btn');
