@@ -148,6 +148,16 @@
             </div>
             
             <div class="space-y-4">
+                <!-- Generate All Metadata -->
+                <div class="bg-gray-700 rounded-lg p-4">
+                    <h3 class="font-semibold mb-2"><i class="fas fa-magic mr-2 text-purple-400"></i>Generate All Metadata</h3>
+                    <p class="text-gray-400 text-sm mb-3">Fill in missing preview images and summaries for all bookmarks.</p>
+                    <button onclick="generateAllMetadata()" id="generate-all-btn" class="bg-purple-600 hover:bg-purple-700 px-3 py-2 rounded text-sm">
+                        <i class="fas fa-wand-magic-sparkles mr-1"></i> Generate All
+                    </button>
+                    <div id="generate-all-status" class="text-sm mt-2 hidden"></div>
+                </div>
+
                 <!-- Chrome Extension -->
                 <div class="bg-gray-700 rounded-lg p-4">
                     <h3 class="font-semibold mb-2"><i class="fab fa-chrome mr-2"></i>Chrome Extension</h3>
@@ -589,6 +599,36 @@
     document.getElementById('web-search-input').addEventListener('keypress', (e) => {
         if (e.key === 'Enter') doWebSearch();
     });
+
+    async function generateAllMetadata() {
+        const btn = document.getElementById('generate-all-btn');
+        const statusDiv = document.getElementById('generate-all-status');
+        
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Processing...';
+        statusDiv.className = 'text-sm mt-2 bg-gray-800 p-2 rounded';
+        statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating metadata for all bookmarks... This may take a while.';
+        
+        try {
+            const res = await fetch('/api/generate-all', { method: 'POST' });
+            const data = await res.json();
+            
+            if (data.error) {
+                statusDiv.className = 'text-sm mt-2 bg-red-900 p-2 rounded';
+                statusDiv.innerHTML = '<i class="fas fa-times"></i> ' + data.error;
+            } else {
+                statusDiv.className = 'text-sm mt-2 bg-green-900 p-2 rounded';
+                statusDiv.innerHTML = `<i class="fas fa-check"></i> Done! Updated ${data.updated} of ${data.total} bookmarks.`;
+                loadBookmarks(currentSource);
+            }
+        } catch (err) {
+            statusDiv.className = 'text-sm mt-2 bg-red-900 p-2 rounded';
+            statusDiv.innerHTML = '<i class="fas fa-times"></i> Error generating metadata';
+        }
+        
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-wand-magic-sparkles mr-1"></i> Generate All';
+    }
 
     async function importInstagramData() {
         const fileInput = document.getElementById('instagram-file');

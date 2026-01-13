@@ -67,6 +67,7 @@ func (s *Server) Serve(addr string) error {
 	mux.HandleFunc("POST /api/instagram/import", s.HandleInstagramImport)
 	mux.HandleFunc("POST /api/analyze", s.HandleAnalyzeURL)
 	mux.HandleFunc("POST /api/bookmarks/{id}/analyze", s.HandleAnalyzeBookmark)
+	mux.HandleFunc("POST /api/generate-all", s.HandleGenerateAllMetadata)
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir(s.StaticDir))))
 	
 	// Wrap with CORS middleware for extension support

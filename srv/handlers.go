@@ -214,6 +214,63 @@ func strPtr(s string) *string {
 	return &s
 }
 
+func (s *Server) HandleGenerateAllMetadata(w http.ResponseWriter, r *http.Request) {
+	q := dbgen.New(s.DB)
+	
+	// Get all bookmarks
+	bookmarks, err := q.ListBookmarks(r.Context(), dbgen.ListBookmarksParams{
+		Limit: 1000, Offset: 0,
+	})
+	if err != nil {
+		writeError(w, err.Error(), 500)
+		return
+	}
+	
+	updated := 0
+	for _, b := range bookmarks {
+		needsUpdate := false
+		newImageURL := b.ImageUrl
+		newSummary := b.Summary
+		
+		// Check if preview image is missing
+		if b.ImageUrl == nil || *b.ImageUrl == "" {
+			img := getPreviewImage(b.Url)
+			if img != "" {
+				newImageURL = &img
+				needsUpdate = true
+			}
+		}
+		
+		// Check if summary is missing
+		if b.Summary == nil || *b.Summary == "" {
+			analysis, err := analyzeURL(b.Url)
+			if err == nil && analysis.Summary != "" {
+				newSummary = &analysis.Summary
+				needsUpdate = true
+			}
+		}
+		
+		if needsUpdate {
+			// Update the bookmark
+			_, err := s.DB.ExecContext(r.Context(), `
+				UPDATE bookmarks SET 
+					image_url = COALESCE(?, image_url),
+					summary = COALESCE(?, summary),
+					updated_at = CURRENT_TIMESTAMP
+				WHERE id = ?`,
+				newImageURL, newSummary, b.ID)
+			if err == nil {
+				updated++
+			}
+		}
+	}
+	
+	writeJSON(w, map[string]any{
+		"total":   len(bookmarks),
+		"updated": updated,
+	})
+}
+
 func (s *Server) HandleAnalyzeBookmark(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	q := dbgen.New(s.DB)
