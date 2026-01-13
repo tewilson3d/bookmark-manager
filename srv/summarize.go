@@ -38,6 +38,8 @@ var stopWords = map[string]bool{
 	"even": true, "way": true, "well": true, "back": true, "being": true, "want": true,
 	"use": true, "using": true, "click": true, "page": true, "website": true,
 	"http": true, "https": true, "www": true, "com": true, "org": true, "net": true,
+	"function": true, "window": true, "var": true, "const": true, "let": true,
+	"return": true, "true": true, "false": true, "null": true, "undefined": true,
 }
 
 type ContentAnalysis struct {
@@ -77,13 +79,11 @@ func analyzeURL(url string) (*ContentAnalysis, error) {
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 500000)) // 500KB max
 	html := string(body)
 
-	// Extract text content
+	// Generate summary from metadata and clean content
+	summary := generateSummary(html, url)
+
+	// Extract text for keywords
 	text := extractText(html)
-
-	// Generate summary
-	summary := generateSummary(html, text)
-
-	// Extract keywords
 	keywords := extractKeywords(text)
 
 	return &ContentAnalysis{
@@ -93,29 +93,40 @@ func analyzeURL(url string) (*ContentAnalysis, error) {
 }
 
 func extractText(html string) string {
-	// Remove script and style tags
+	// Remove script tags and their content
 	re := regexp.MustCompile(`(?is)<script[^>]*>.*?</script>`)
 	html = re.ReplaceAllString(html, " ")
+	
+	// Remove style tags
 	re = regexp.MustCompile(`(?is)<style[^>]*>.*?</style>`)
 	html = re.ReplaceAllString(html, " ")
-	re = regexp.MustCompile(`(?is)<nav[^>]*>.*?</nav>`)
+	
+	// Remove noscript
+	re = regexp.MustCompile(`(?is)<noscript[^>]*>.*?</noscript>`)
 	html = re.ReplaceAllString(html, " ")
-	re = regexp.MustCompile(`(?is)<footer[^>]*>.*?</footer>`)
+	
+	// Remove JSON-LD
+	re = regexp.MustCompile(`(?is)<script[^>]*type=["']application/ld\+json["'][^>]*>.*?</script>`)
 	html = re.ReplaceAllString(html, " ")
-	re = regexp.MustCompile(`(?is)<header[^>]*>.*?</header>`)
-	html = re.ReplaceAllString(html, " ")
+
+	// Remove nav, footer, header, aside
+	for _, tag := range []string{"nav", "footer", "header", "aside", "menu"} {
+		re = regexp.MustCompile(`(?is)<` + tag + `[^>]*>.*?</` + tag + `>`)
+		html = re.ReplaceAllString(html, " ")
+	}
 
 	// Remove all HTML tags
 	re = regexp.MustCompile(`<[^>]+>`)
 	text := re.ReplaceAllString(html, " ")
 
 	// Decode HTML entities
-	text = strings.ReplaceAll(text, "&nbsp;", " ")
-	text = strings.ReplaceAll(text, "&amp;", "&")
-	text = strings.ReplaceAll(text, "&lt;", "<")
-	text = strings.ReplaceAll(text, "&gt;", ">")
-	text = strings.ReplaceAll(text, "&quot;", "\"")
-	text = strings.ReplaceAll(text, "&#39;", "'")
+	text = decodeHTMLEntities(text)
+
+	// Remove any remaining JavaScript-like content
+	re = regexp.MustCompile(`\{[^}]*\}`)
+	text = re.ReplaceAllString(text, " ")
+	re = regexp.MustCompile(`\[[^\]]*\]`)
+	text = re.ReplaceAllString(text, " ")
 
 	// Normalize whitespace
 	re = regexp.MustCompile(`\s+`)
@@ -124,59 +135,211 @@ func extractText(html string) string {
 	return strings.TrimSpace(text)
 }
 
-func generateSummary(html, text string) string {
-	var summary string
-
-	// Try to get meta description first
-	re := regexp.MustCompile(`(?i)<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']`)
-	if m := re.FindStringSubmatch(html); len(m) > 1 {
-		summary = strings.TrimSpace(m[1])
+func decodeHTMLEntities(text string) string {
+	replacements := map[string]string{
+		"&nbsp;": " ", "&amp;": "&", "&lt;": "<", "&gt;": ">",
+		"&quot;": "\"", "&#39;": "'", "&apos;": "'",
+		"&mdash;": "—", "&ndash;": "–", "&hellip;": "...",
+		"&copy;": "©", "&reg;": "®", "&trade;": "™",
 	}
+	for entity, char := range replacements {
+		text = strings.ReplaceAll(text, entity, char)
+	}
+	// Remove numeric entities
+	re := regexp.MustCompile(`&#\d+;`)
+	text = re.ReplaceAllString(text, " ")
+	return text
+}
 
-	// Try og:description
-	if summary == "" {
-		re = regexp.MustCompile(`(?i)<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']`)
+func generateSummary(html, url string) string {
+	var parts []string
+
+	// 1. Get the title
+	title := extractMetaContent(html, "og:title")
+	if title == "" {
+		title = extractMetaContent(html, "twitter:title")
+	}
+	if title == "" {
+		re := regexp.MustCompile(`(?i)<title[^>]*>([^<]+)</title>`)
 		if m := re.FindStringSubmatch(html); len(m) > 1 {
-			summary = strings.TrimSpace(m[1])
+			title = strings.TrimSpace(m[1])
 		}
 	}
 
-	// Try to find first paragraph
-	if summary == "" {
-		re = regexp.MustCompile(`(?is)<p[^>]*>([^<]{50,500})</p>`)
-		if m := re.FindStringSubmatch(html); len(m) > 1 {
-			// Clean the paragraph
-			p := regexp.MustCompile(`<[^>]+>`).ReplaceAllString(m[1], "")
-			p = strings.TrimSpace(p)
-			if len(p) > 50 {
-				summary = p
+	// 2. Get description
+	description := extractMetaContent(html, "og:description")
+	if description == "" {
+		description = extractMetaContent(html, "description")
+	}
+	if description == "" {
+		description = extractMetaContent(html, "twitter:description")
+	}
+
+	// 3. Get site name
+	siteName := extractMetaContent(html, "og:site_name")
+	if siteName == "" {
+		siteName = extractMetaContent(html, "application-name")
+	}
+
+	// 4. Get type/category
+	contentType := extractMetaContent(html, "og:type")
+
+	// 5. Get author
+	author := extractMetaContent(html, "author")
+	if author == "" {
+		author = extractMetaContent(html, "article:author")
+	}
+
+	// 6. Get publish date
+	publishDate := extractMetaContent(html, "article:published_time")
+	if publishDate == "" {
+		publishDate = extractMetaContent(html, "datePublished")
+	}
+
+	// Build human-readable summary
+	if siteName != "" && siteName != title {
+		parts = append(parts, "From "+siteName+".")
+	}
+
+	if contentType != "" && contentType != "website" {
+		parts = append(parts, strings.Title(strings.ReplaceAll(contentType, "_", " "))+".")
+	}
+
+	if description != "" {
+		// Clean up description
+		description = decodeHTMLEntities(description)
+		description = strings.TrimSpace(description)
+		if len(description) > 400 {
+			description = description[:400] + "..."
+		}
+		parts = append(parts, description)
+	}
+
+	if author != "" {
+		parts = append(parts, "By "+author+".")
+	}
+
+	if publishDate != "" {
+		// Try to format date nicely
+		if t, err := time.Parse(time.RFC3339, publishDate); err == nil {
+			parts = append(parts, "Published "+t.Format("January 2, 2006")+".")
+		} else if t, err := time.Parse("2006-01-02", publishDate); err == nil {
+			parts = append(parts, "Published "+t.Format("January 2, 2006")+".")
+		}
+	}
+
+	// If we still don't have a good description, try to get first paragraph
+	if description == "" {
+		firstPara := extractFirstParagraph(html)
+		if firstPara != "" {
+			parts = append(parts, firstPara)
+		}
+	}
+
+	// Detect content type from URL if not specified
+	if len(parts) == 0 || (len(parts) == 1 && siteName != "") {
+		urlLower := strings.ToLower(url)
+		switch {
+		case strings.Contains(urlLower, "youtube.com") || strings.Contains(urlLower, "youtu.be"):
+			videoTitle := extractMetaContent(html, "og:title")
+			if videoTitle != "" {
+				parts = append(parts, "YouTube video: "+videoTitle)
 			}
+		case strings.Contains(urlLower, "instagram.com"):
+			parts = append(parts, "Instagram post.")
+		case strings.Contains(urlLower, "linkedin.com"):
+			parts = append(parts, "LinkedIn content.")
+		case strings.Contains(urlLower, "twitter.com") || strings.Contains(urlLower, "x.com"):
+			parts = append(parts, "Twitter/X post.")
+		case strings.Contains(urlLower, "github.com"):
+			parts = append(parts, "GitHub repository or page.")
 		}
 	}
 
-	// Fall back to first part of text
-	if summary == "" && len(text) > 100 {
-		// Find first sentence or chunk
-		end := 300
-		if len(text) < end {
-			end = len(text)
+	summary := strings.Join(parts, " ")
+	
+	// Final cleanup
+	summary = strings.TrimSpace(summary)
+	
+	// Make sure we don't have JavaScript garbage
+	if strings.Contains(summary, "function") || strings.Contains(summary, "window.") || 
+	   strings.Contains(summary, "{") || strings.Contains(summary, "var ") ||
+	   strings.Contains(summary, "ytcfg") || strings.Contains(summary, "ytplayer") {
+		// Fall back to just title + site
+		parts = []string{}
+		if siteName != "" {
+			parts = append(parts, "From "+siteName+".")
 		}
-		summary = text[:end]
-		// Try to end at a sentence
-		if idx := strings.LastIndexAny(summary, ".!?"); idx > 100 {
-			summary = summary[:idx+1]
+		if title != "" {
+			parts = append(parts, title)
 		}
+		summary = strings.Join(parts, " ")
 	}
 
-	// Truncate if too long
-	if len(summary) > 500 {
-		summary = summary[:500] + "..."
+	if summary == "" {
+		summary = "No description available for this page."
 	}
 
 	return summary
 }
 
+func extractMetaContent(html, name string) string {
+	// Try property attribute (og:, twitter:)
+	patterns := []string{
+		`(?i)<meta[^>]+property=["']` + regexp.QuoteMeta(name) + `["'][^>]+content=["']([^"']+)["']`,
+		`(?i)<meta[^>]+content=["']([^"']+)["'][^>]+property=["']` + regexp.QuoteMeta(name) + `["']`,
+		`(?i)<meta[^>]+name=["']` + regexp.QuoteMeta(name) + `["'][^>]+content=["']([^"']+)["']`,
+		`(?i)<meta[^>]+content=["']([^"']+)["'][^>]+name=["']` + regexp.QuoteMeta(name) + `["']`,
+	}
+
+	for _, pattern := range patterns {
+		re := regexp.MustCompile(pattern)
+		if m := re.FindStringSubmatch(html); len(m) > 1 {
+			return strings.TrimSpace(decodeHTMLEntities(m[1]))
+		}
+	}
+	return ""
+}
+
+func extractFirstParagraph(html string) string {
+	// Look for article content first
+	re := regexp.MustCompile(`(?is)<article[^>]*>(.*?)</article>`)
+	if m := re.FindStringSubmatch(html); len(m) > 1 {
+		html = m[1]
+	}
+
+	// Find first meaningful paragraph
+	re = regexp.MustCompile(`(?is)<p[^>]*>([^<]{100,})</p>`)
+	matches := re.FindAllStringSubmatch(html, 5)
+	
+	for _, m := range matches {
+		if len(m) > 1 {
+			text := strings.TrimSpace(m[1])
+			text = regexp.MustCompile(`<[^>]+>`).ReplaceAllString(text, "")
+			text = decodeHTMLEntities(text)
+			text = strings.TrimSpace(text)
+			
+			// Skip if it looks like code or garbage
+			if strings.Contains(text, "{") || strings.Contains(text, "function") ||
+			   strings.Contains(text, "var ") || len(text) < 50 {
+				continue
+			}
+			
+			if len(text) > 300 {
+				text = text[:300] + "..."
+			}
+			return text
+		}
+	}
+	return ""
+}
+
 func extractKeywords(text string) []string {
+	// Skip if text looks like code
+	if strings.Contains(text, "function") || strings.Contains(text, "window.") {
+		return []string{}
+	}
+
 	// Tokenize and count words
 	wordCounts := make(map[string]int)
 	words := strings.FieldsFunc(strings.ToLower(text), func(r rune) bool {
@@ -185,7 +348,7 @@ func extractKeywords(text string) []string {
 
 	for _, word := range words {
 		word = strings.TrimSpace(word)
-		if len(word) < 3 || len(word) > 30 {
+		if len(word) < 3 || len(word) > 25 {
 			continue
 		}
 		if stopWords[word] {
@@ -199,6 +362,18 @@ func extractKeywords(text string) []string {
 			}
 		}
 		if numCount > len(word)/2 {
+			continue
+		}
+		// Skip common code words
+		codeWords := []string{"script", "style", "div", "span", "class", "href", "src", "img", "onclick", "onload"}
+		isCode := false
+		for _, cw := range codeWords {
+			if word == cw {
+				isCode = true
+				break
+			}
+		}
+		if isCode {
 			continue
 		}
 		wordCounts[word]++
@@ -230,3 +405,5 @@ func extractKeywords(text string) []string {
 
 	return keywords
 }
+
+
