@@ -2,10 +2,13 @@ package srv
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"srv.exe.dev/db/dbgen"
 )
@@ -61,9 +64,9 @@ func (s *Server) HandleCreateBookmark(w http.ResponseWriter, r *http.Request) {
 		req.SourceType = detectSourceType(req.URL)
 	}
 	
-	// Auto-fetch favicon if not provided
-	if req.FaviconURL == "" {
-		req.FaviconURL = getFaviconURL(req.URL)
+	// Auto-fetch preview image if not provided
+	if req.ImageURL == "" {
+		req.ImageURL = getPreviewImage(req.URL)
 	}
 
 	q := dbgen.New(s.DB)
@@ -258,20 +261,90 @@ func detectSourceType(url string) string {
 	return "web"
 }
 
-// getFaviconURL returns the favicon URL for a given page URL
-func getFaviconURL(pageURL string) string {
-	// Use Google's favicon service - reliable and works for most sites
-	// This returns a 16x16 PNG favicon for any domain
-	parsedURL, err := url.Parse(pageURL)
+// getPreviewImage fetches og:image or other preview image for a URL
+func getPreviewImage(pageURL string) string {
+	client := &http.Client{Timeout: 10 * time.Second}
+	req, err := http.NewRequest("GET", pageURL, nil)
 	if err != nil {
-		return ""
+		return getScreenshotService(pageURL)
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+	
+	resp, err := client.Do(req)
+	if err != nil {
+		return getScreenshotService(pageURL)
+	}
+	defer resp.Body.Close()
+	
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, 100000)) // 100KB should be enough for meta tags
+	html := string(body)
+	
+	// Try og:image first (most reliable for preview)
+	ogImage := extractMeta(html, "og:image")
+	if ogImage != "" {
+		return makeAbsoluteURL(ogImage, pageURL)
 	}
 	
-	domain := parsedURL.Host
-	if domain == "" {
-		return ""
+	// Try twitter:image
+	twitterImage := extractMeta(html, "twitter:image")
+	if twitterImage != "" {
+		return makeAbsoluteURL(twitterImage, pageURL)
 	}
 	
-	// Google's favicon service
-	return "https://www.google.com/s2/favicons?domain=" + domain + "&sz=64"
+	// Try twitter:image:src
+	twitterImageSrc := extractMeta(html, "twitter:image:src")
+	if twitterImageSrc != "" {
+		return makeAbsoluteURL(twitterImageSrc, pageURL)
+	}
+	
+	// Fallback to screenshot service
+	return getScreenshotService(pageURL)
+}
+
+// extractMeta extracts content from meta tags
+func extractMeta(html, property string) string {
+	// Try property attribute
+	patterns := []string{
+		`(?i)<meta[^>]+property=["']` + property + `["'][^>]+content=["']([^"']+)["']`,
+		`(?i)<meta[^>]+content=["']([^"']+)["'][^>]+property=["']` + property + `["']`,
+		`(?i)<meta[^>]+name=["']` + property + `["'][^>]+content=["']([^"']+)["']`,
+		`(?i)<meta[^>]+content=["']([^"']+)["'][^>]+name=["']` + property + `["']`,
+	}
+	
+	for _, pattern := range patterns {
+		re := regexp.MustCompile(pattern)
+		if m := re.FindStringSubmatch(html); len(m) > 1 {
+			return strings.TrimSpace(m[1])
+		}
+	}
+	return ""
+}
+
+// makeAbsoluteURL converts relative URLs to absolute
+func makeAbsoluteURL(imgURL, pageURL string) string {
+	if strings.HasPrefix(imgURL, "http://") || strings.HasPrefix(imgURL, "https://") {
+		return imgURL
+	}
+	
+	parsed, err := url.Parse(pageURL)
+	if err != nil {
+		return imgURL
+	}
+	
+	if strings.HasPrefix(imgURL, "//") {
+		return parsed.Scheme + ":" + imgURL
+	}
+	
+	if strings.HasPrefix(imgURL, "/") {
+		return parsed.Scheme + "://" + parsed.Host + imgURL
+	}
+	
+	return parsed.Scheme + "://" + parsed.Host + "/" + imgURL
+}
+
+// getScreenshotService returns a URL for a screenshot/thumbnail service
+func getScreenshotService(pageURL string) string {
+	// Use thumbnail.ws or similar service for page screenshots
+	// This provides a visual preview of the page
+	return "https://image.thum.io/get/width/600/crop/400/" + pageURL
 }
