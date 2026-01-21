@@ -13,18 +13,18 @@ chrome.storage.sync.get(['serverUrl'], (result) => {
 // Get current tab info
 chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
   const tab = tabs[0];
-  const url = tab.url;
-  const title = tab.title;
+  const url = tab?.url || '';
+  const title = tab?.title || '';
 
   document.getElementById('url').value = url;
   document.getElementById('title').value = title;
 
   // Detect source type
   const badge = document.getElementById('source-badge');
-  if (url.includes('instagram.com')) {
+  if (url && url.includes('instagram.com')) {
     badge.textContent = 'Instagram';
     badge.className = 'source-badge source-instagram';
-  } else if (url.includes('linkedin.com')) {
+  } else if (url && url.includes('linkedin.com')) {
     badge.textContent = 'LinkedIn';
     badge.className = 'source-badge source-linkedin';
   } else {
