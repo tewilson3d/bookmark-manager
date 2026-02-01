@@ -17,6 +17,9 @@
         .source-instagram { background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888); }
         .source-linkedin { background: #0077b5; }
         .source-youtube { background: #ff0000; }
+        .source-email { background: #10b981; }
+        .bookmark-card.selected { ring: 2px; outline: 2px solid #6366f1; }
+        .selection-mode .bookmark-card { cursor: pointer; }
     </style>
 </head>
 <body class="bg-gray-900 text-white min-h-screen">
@@ -43,10 +46,16 @@
                 <button onclick="loadBookmarks('youtube')" class="w-full text-left px-3 py-2 rounded hover:bg-gray-700 flex items-center gap-2">
                     <i class="fab fa-youtube"></i> YouTube
                 </button>
+                <button onclick="loadBookmarks('email')" class="w-full text-left px-3 py-2 rounded hover:bg-gray-700 flex items-center gap-2">
+                    <i class="fas fa-envelope"></i> Email
+                </button>
                 
                 <div class="border-t border-gray-700 my-4"></div>
                 
-                <div class="text-gray-400 text-sm mb-2">Collections</div>
+                <div class="text-gray-400 text-sm mb-2 flex items-center justify-between">
+                    <span>Collections</span>
+                    <button onclick="showCreateCollectionModal()" class="text-indigo-400 hover:text-indigo-300"><i class="fas fa-plus"></i></button>
+                </div>
                 <div id="collections-list"></div>
                 
                 <div class="border-t border-gray-700 my-4"></div>
@@ -73,10 +82,41 @@
         <main class="flex-1 flex flex-col overflow-hidden">
             <!-- Search Bar -->
             <div class="p-4 bg-gray-800 border-b border-gray-700">
-                <div class="relative max-w-2xl mx-auto">
-                    <input type="text" id="search-input" placeholder="Search bookmarks..." 
-                        class="w-full bg-gray-700 rounded-lg px-4 py-2 pl-10 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                    <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                <div class="relative max-w-2xl mx-auto flex gap-2">
+                    <div class="relative flex-1">
+                        <input type="text" id="search-input" placeholder="Search bookmarks..." 
+                            class="w-full bg-gray-700 rounded-lg px-4 py-2 pl-10 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                    </div>
+                    <button onclick="toggleSelectionMode()" id="select-btn" class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg" title="Select bookmarks">
+                        <i class="fas fa-check-square"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Selection Toolbar -->
+            <div id="selection-toolbar" class="hidden bg-indigo-600 px-4 py-2 flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                    <button onclick="toggleSelectionMode()" class="text-white hover:text-gray-200">
+                        <i class="fas fa-times"></i>
+                    </button>
+                    <span id="selection-count">0 selected</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <select id="move-to-category" onchange="moveSelectedToCategory()" class="bg-indigo-700 text-white rounded px-3 py-1 text-sm">
+                        <option value="">Move to category...</option>
+                        <option value="web">Web</option>
+                        <option value="instagram">Instagram</option>
+                        <option value="linkedin">LinkedIn</option>
+                        <option value="youtube">YouTube</option>
+                        <option value="email">Email</option>
+                    </select>
+                    <select id="add-to-collection" onchange="addSelectedToCollection()" class="bg-indigo-700 text-white rounded px-3 py-1 text-sm">
+                        <option value="">Add to collection...</option>
+                    </select>
+                    <button onclick="deleteSelected()" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm">
+                        <i class="fas fa-trash"></i> Delete
+                    </button>
                 </div>
             </div>
             
@@ -314,6 +354,8 @@
     <script>
     let currentSource = '';
     let debounceTimer;
+    let selectionMode = false;
+    let selectedBookmarks = new Set();
 
     async function loadBookmarks(source = '') {
         currentSource = source;
@@ -341,13 +383,21 @@
 
     function createCard(b) {
         const card = document.createElement('div');
-        card.className = 'bg-gray-800 rounded-lg overflow-hidden hover:ring-2 hover:ring-indigo-500 transition cursor-pointer';
-        card.onclick = () => viewBookmark(b.id);
+        card.className = 'bg-gray-800 rounded-lg overflow-hidden hover:ring-2 hover:ring-indigo-500 transition cursor-pointer bookmark-card';
+        card.dataset.id = b.id;
+        card.onclick = (e) => {
+            if (selectionMode) {
+                toggleCardSelection(card, b.id);
+            } else {
+                viewBookmark(b.id);
+            }
+        };
         
         const sourceClass = `source-${b.source_type}`;
         const sourceIcon = b.source_type === 'instagram' ? 'fab fa-instagram' : 
                           b.source_type === 'linkedin' ? 'fab fa-linkedin' : 
-                          b.source_type === 'youtube' ? 'fab fa-youtube' : 'fas fa-globe';
+                          b.source_type === 'youtube' ? 'fab fa-youtube' : 
+                          b.source_type === 'email' ? 'fas fa-envelope' : 'fas fa-globe';
         
         // Use favicon if available, otherwise show source icon
         const faviconHtml = b.favicon_url 
@@ -608,10 +658,33 @@
         const collections = await res.json();
         const container = document.getElementById('collections-list');
         container.innerHTML = (collections || []).map(c => 
-            `<button class="w-full text-left px-3 py-2 rounded hover:bg-gray-700 flex items-center gap-2">
+            `<button onclick="loadCollectionBookmarks(${c.id})" class="w-full text-left px-3 py-2 rounded hover:bg-gray-700 flex items-center gap-2">
                 ${c.icon || '📁'} ${escapeHtml(c.name)}
             </button>`
         ).join('');
+    }
+    
+    async function loadCollectionBookmarks(collectionId) {
+        currentSource = '';
+        const grid = document.getElementById('bookmarks-grid');
+        const loading = document.getElementById('loading');
+        const empty = document.getElementById('empty-state');
+        
+        loading.classList.remove('hidden');
+        grid.innerHTML = '';
+        
+        const res = await fetch(`/api/collections/${collectionId}/bookmarks`);
+        const bookmarks = await res.json();
+        
+        loading.classList.add('hidden');
+        
+        if (!bookmarks || bookmarks.length === 0) {
+            empty.classList.remove('hidden');
+            return;
+        }
+        empty.classList.add('hidden');
+        
+        bookmarks.forEach(b => grid.appendChild(createCard(b)));
     }
 
     function escapeHtml(str) {
@@ -952,6 +1025,119 @@
         fetchMeta();
         // Clean URL
         history.replaceState({}, '', '/');
+    }
+
+    // Selection mode functions
+    function toggleSelectionMode() {
+        selectionMode = !selectionMode;
+        selectedBookmarks.clear();
+        updateSelectionUI();
+        
+        const grid = document.getElementById('bookmarks-grid');
+        const toolbar = document.getElementById('selection-toolbar');
+        const selectBtn = document.getElementById('select-btn');
+        
+        if (selectionMode) {
+            grid.classList.add('selection-mode');
+            toolbar.classList.remove('hidden');
+            toolbar.classList.add('flex');
+            selectBtn.classList.add('bg-indigo-600');
+            selectBtn.classList.remove('bg-gray-700');
+            loadCollectionsForDropdown();
+        } else {
+            grid.classList.remove('selection-mode');
+            toolbar.classList.add('hidden');
+            toolbar.classList.remove('flex');
+            selectBtn.classList.remove('bg-indigo-600');
+            selectBtn.classList.add('bg-gray-700');
+            document.querySelectorAll('.bookmark-card.selected').forEach(c => c.classList.remove('selected'));
+        }
+    }
+    
+    function toggleCardSelection(card, id) {
+        if (selectedBookmarks.has(id)) {
+            selectedBookmarks.delete(id);
+            card.classList.remove('selected');
+        } else {
+            selectedBookmarks.add(id);
+            card.classList.add('selected');
+        }
+        updateSelectionUI();
+    }
+    
+    function updateSelectionUI() {
+        document.getElementById('selection-count').textContent = `${selectedBookmarks.size} selected`;
+    }
+    
+    async function loadCollectionsForDropdown() {
+        const res = await fetch('/api/collections');
+        const collections = await res.json();
+        const select = document.getElementById('add-to-collection');
+        select.innerHTML = '<option value="">Add to collection...</option>';
+        (collections || []).forEach(c => {
+            select.innerHTML += `<option value="${c.id}">${c.icon || '📁'} ${escapeHtml(c.name)}</option>`;
+        });
+    }
+    
+    async function moveSelectedToCategory() {
+        const select = document.getElementById('move-to-category');
+        const category = select.value;
+        if (!category || selectedBookmarks.size === 0) return;
+        
+        await fetch('/api/bookmarks/bulk-update', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                bookmark_ids: Array.from(selectedBookmarks),
+                source_type: category
+            })
+        });
+        
+        select.value = '';
+        toggleSelectionMode();
+        loadBookmarks(currentSource);
+    }
+    
+    async function addSelectedToCollection() {
+        const select = document.getElementById('add-to-collection');
+        const collectionId = select.value;
+        if (!collectionId || selectedBookmarks.size === 0) return;
+        
+        await fetch(`/api/collections/${collectionId}/bookmarks`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                bookmark_ids: Array.from(selectedBookmarks)
+            })
+        });
+        
+        select.value = '';
+        toggleSelectionMode();
+        loadCollections();
+    }
+    
+    async function deleteSelected() {
+        if (selectedBookmarks.size === 0) return;
+        if (!confirm(`Delete ${selectedBookmarks.size} bookmarks?`)) return;
+        
+        for (const id of selectedBookmarks) {
+            await fetch(`/api/bookmarks/${id}`, {method: 'DELETE'});
+        }
+        
+        toggleSelectionMode();
+        loadBookmarks(currentSource);
+    }
+    
+    function showCreateCollectionModal() {
+        const name = prompt('Collection name:');
+        if (!name) return;
+        const icon = prompt('Icon (emoji):', '📁') || '📁';
+        
+        fetch('/api/collections', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({name, icon})
+        }).then(() => loadCollections());
     }
 
     // Initial load

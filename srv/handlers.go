@@ -214,6 +214,69 @@ func strPtr(s string) *string {
 	return &s
 }
 
+func (s *Server) HandleGetCollectionBookmarks(w http.ResponseWriter, r *http.Request) {
+	id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	q := dbgen.New(s.DB)
+	bookmarks, err := q.GetBookmarksInCollection(r.Context(), dbgen.GetBookmarksInCollectionParams{
+		CollectionID: id,
+		Limit:        1000,
+		Offset:       0,
+	})
+	if err != nil {
+		writeError(w, err.Error(), 500)
+		return
+	}
+	writeJSON(w, bookmarks)
+}
+
+func (s *Server) HandleAddBookmarksToCollection(w http.ResponseWriter, r *http.Request) {
+	id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	var req struct {
+		BookmarkIDs []int64 `json:"bookmark_ids"`
+	}
+	json.NewDecoder(r.Body).Decode(&req)
+	q := dbgen.New(s.DB)
+	for _, bid := range req.BookmarkIDs {
+		q.AddBookmarkToCollection(r.Context(), dbgen.AddBookmarkToCollectionParams{
+			BookmarkID:   bid,
+			CollectionID: id,
+		})
+	}
+	w.WriteHeader(200)
+	writeJSON(w, map[string]string{"status": "ok"})
+}
+
+func (s *Server) HandleRemoveBookmarksFromCollection(w http.ResponseWriter, r *http.Request) {
+	id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	var req struct {
+		BookmarkIDs []int64 `json:"bookmark_ids"`
+	}
+	json.NewDecoder(r.Body).Decode(&req)
+	q := dbgen.New(s.DB)
+	for _, bid := range req.BookmarkIDs {
+		q.RemoveBookmarkFromCollection(r.Context(), dbgen.RemoveBookmarkFromCollectionParams{
+			BookmarkID:   bid,
+			CollectionID: id,
+		})
+	}
+	w.WriteHeader(200)
+	writeJSON(w, map[string]string{"status": "ok"})
+}
+
+func (s *Server) HandleBulkUpdateBookmarks(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		BookmarkIDs []int64 `json:"bookmark_ids"`
+		SourceType  string  `json:"source_type"`
+	}
+	json.NewDecoder(r.Body).Decode(&req)
+	
+	for _, bid := range req.BookmarkIDs {
+		s.DB.ExecContext(r.Context(), "UPDATE bookmarks SET source_type = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", req.SourceType, bid)
+	}
+	w.WriteHeader(200)
+	writeJSON(w, map[string]string{"status": "ok"})
+}
+
 func (s *Server) HandleGenerateAllMetadata(w http.ResponseWriter, r *http.Request) {
 	q := dbgen.New(s.DB)
 	
