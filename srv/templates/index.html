@@ -20,33 +20,77 @@
         .source-3d { background: #10b981; }
         .bookmark-card.selected { ring: 2px; outline: 2px solid #6366f1; }
         .selection-mode .bookmark-card { cursor: pointer; }
+        
+        /* Mobile styles */
+        @media (max-width: 768px) {
+            .sidebar { 
+                position: fixed;
+                left: -100%;
+                top: 0;
+                bottom: 0;
+                z-index: 50;
+                transition: left 0.3s ease;
+                width: 280px;
+            }
+            .sidebar.open { left: 0; }
+            .sidebar-overlay {
+                display: none;
+                position: fixed;
+                inset: 0;
+                background: rgba(0,0,0,0.5);
+                z-index: 40;
+            }
+            .sidebar-overlay.open { display: block; }
+            .mobile-header { display: flex !important; }
+            .main-content { margin-left: 0 !important; }
+        }
+        @media (min-width: 769px) {
+            .mobile-header { display: none !important; }
+            .sidebar-overlay { display: none !important; }
+        }
     </style>
 </head>
 <body class="bg-gray-900 text-white min-h-screen">
-    <div class="flex h-screen">
+    <!-- Mobile Header -->
+    <div class="mobile-header hidden bg-gray-800 p-4 items-center justify-between sticky top-0 z-30">
+        <button onclick="toggleSidebar()" class="text-white text-xl">
+            <i class="fas fa-bars"></i>
+        </button>
+        <h1 class="text-xl font-bold flex items-center gap-2">
+            <i class="fas fa-bookmark text-indigo-500"></i> Bookmarks
+        </h1>
+        <button onclick="showAddModal()" class="text-indigo-400">
+            <i class="fas fa-plus text-xl"></i>
+        </button>
+    </div>
+    
+    <!-- Sidebar Overlay -->
+    <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
+    
+    <div class="flex flex-col md:flex-row min-h-screen md:h-screen">
         <!-- Sidebar -->
-        <aside class="w-64 bg-gray-800 p-4 flex flex-col">
+        <aside id="sidebar" class="sidebar w-64 bg-gray-800 p-4 flex flex-col md:relative md:left-0">
             <h1 class="text-2xl font-bold mb-6 flex items-center gap-2">
                 <i class="fas fa-bookmark text-indigo-500"></i> Bookmarks
             </h1>
             
-            <nav class="space-y-2 flex-1">
-                <button onclick="loadBookmarks()" class="w-full text-left px-3 py-2 rounded hover:bg-gray-700 flex items-center gap-2">
+            <nav class="space-y-2 flex-1 overflow-y-auto">
+                <button onclick="loadBookmarks(); closeSidebarOnMobile()" class="w-full text-left px-3 py-2 rounded hover:bg-gray-700 flex items-center gap-2">
                     <i class="fas fa-home"></i> All Bookmarks
                 </button>
-                <button onclick="loadBookmarks('web')" class="w-full text-left px-3 py-2 rounded hover:bg-gray-700 flex items-center gap-2">
+                <button onclick="loadBookmarks('web'); closeSidebarOnMobile()" class="w-full text-left px-3 py-2 rounded hover:bg-gray-700 flex items-center gap-2">
                     <i class="fas fa-globe"></i> Web
                 </button>
-                <button onclick="loadBookmarks('instagram')" class="w-full text-left px-3 py-2 rounded hover:bg-gray-700 flex items-center gap-2">
+                <button onclick="loadBookmarks('instagram'); closeSidebarOnMobile()" class="w-full text-left px-3 py-2 rounded hover:bg-gray-700 flex items-center gap-2">
                     <i class="fab fa-instagram"></i> Instagram
                 </button>
-                <button onclick="loadBookmarks('linkedin')" class="w-full text-left px-3 py-2 rounded hover:bg-gray-700 flex items-center gap-2">
+                <button onclick="loadBookmarks('linkedin'); closeSidebarOnMobile()" class="w-full text-left px-3 py-2 rounded hover:bg-gray-700 flex items-center gap-2">
                     <i class="fab fa-linkedin"></i> LinkedIn
                 </button>
-                <button onclick="loadBookmarks('youtube')" class="w-full text-left px-3 py-2 rounded hover:bg-gray-700 flex items-center gap-2">
+                <button onclick="loadBookmarks('youtube'); closeSidebarOnMobile()" class="w-full text-left px-3 py-2 rounded hover:bg-gray-700 flex items-center gap-2">
                     <i class="fab fa-youtube"></i> YouTube
                 </button>
-                <button onclick="loadBookmarks('3d')" class="w-full text-left px-3 py-2 rounded hover:bg-gray-700 flex items-center gap-2">
+                <button onclick="loadBookmarks('3d'); closeSidebarOnMobile()" class="w-full text-left px-3 py-2 rounded hover:bg-gray-700 flex items-center gap-2">
                     <i class="fas fa-cube"></i> 3D
                 </button>
                 
@@ -79,7 +123,7 @@
         </aside>
         
         <!-- Main Content -->
-        <main class="flex-1 flex flex-col overflow-hidden">
+        <main class="main-content flex-1 flex flex-col overflow-hidden">
             <!-- Search Bar -->
             <div class="p-4 bg-gray-800 border-b border-gray-700">
                 <div class="relative max-w-2xl mx-auto flex gap-2">
@@ -356,6 +400,20 @@
     let debounceTimer;
     let selectionMode = false;
     let selectedBookmarks = new Set();
+    
+    function toggleSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebar-overlay');
+        sidebar.classList.toggle('open');
+        overlay.classList.toggle('open');
+    }
+    
+    // Close sidebar when clicking a nav item on mobile
+    function closeSidebarOnMobile() {
+        if (window.innerWidth <= 768) {
+            toggleSidebar();
+        }
+    }
 
     async function loadBookmarks(source = '') {
         currentSource = source;
