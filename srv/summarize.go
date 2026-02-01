@@ -79,12 +79,29 @@ func analyzeURL(url string) (*ContentAnalysis, error) {
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 500000)) // 500KB max
 	html := string(body)
 
-	// Generate summary from metadata and clean content
-	summary := generateSummary(html, url)
+	// Extract metadata
+	title := extractMetaContent(html, "og:title")
+	if title == "" {
+		re := regexp.MustCompile(`(?i)<title[^>]*>([^<]+)</title>`)
+		if m := re.FindStringSubmatch(html); len(m) > 1 {
+			title = strings.TrimSpace(m[1])
+		}
+	}
+	description := extractMetaContent(html, "og:description")
+	if description == "" {
+		description = extractMetaContent(html, "description")
+	}
 
-	// Extract text for keywords
+	// Extract text for keywords and LLM
 	text := extractText(html)
 	keywords := extractKeywords(text)
+
+	// Try LLM summarization first
+	summary, err := summarizeWithLLM(title, description, text, url)
+	if err != nil {
+		// Fall back to metadata-based summary
+		summary = generateSummary(html, url)
+	}
 
 	return &ContentAnalysis{
 		Summary:  summary,

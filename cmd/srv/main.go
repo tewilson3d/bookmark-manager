@@ -22,6 +22,12 @@ func run() error {
 	if err != nil {
 		hostname = "unknown"
 	}
+	
+	// Set OpenAI API key if available
+	if key := os.Getenv("OPENAI_API_KEY"); key != "" {
+		srv.SetOpenAIKey(key)
+	}
+	
 	server, err := srv.New("db.sqlite3", hostname)
 	if err != nil {
 		return fmt.Errorf("create server: %w", err)
