@@ -60,6 +60,14 @@ func (s *Server) HandleCreateBookmark(w http.ResponseWriter, r *http.Request) {
 		writeError(w, "url is required", 400)
 		return
 	}
+	// Default title to URL hostname if not provided
+	if req.Title == "" {
+		if u, err := url.Parse(req.URL); err == nil {
+			req.Title = u.Host
+		} else {
+			req.Title = req.URL
+		}
+	}
 	if req.SourceType == "" {
 		req.SourceType = detectSourceType(req.URL)
 	}
@@ -360,6 +368,25 @@ func (s *Server) HandleAnalyzeBookmark(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeError(w, "failed to save: "+err.Error(), 500)
 		return
+	}
+	
+	// If title is empty or just hostname, generate from summary
+	needsTitle := bookmark.Title == ""
+	if !needsTitle {
+		if u, err := url.Parse(bookmark.Url); err == nil {
+			needsTitle = bookmark.Title == u.Host
+		}
+	}
+	if needsTitle && analysis.Summary != "" {
+		// Generate a short title from summary (first sentence, max 60 chars)
+		title := analysis.Summary
+		if idx := strings.Index(title, "."); idx > 0 && idx < 80 {
+			title = title[:idx]
+		} else if len(title) > 60 {
+			title = title[:57] + "..."
+		}
+		s.DB.ExecContext(r.Context(), "UPDATE bookmarks SET title = ? WHERE id = ?", title, id)
+		updated.Title = title
 	}
 	
 	writeJSON(w, map[string]any{
