@@ -7,7 +7,9 @@ import (
 	"html/template"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"path/filepath"
+	"regexp"
 	"runtime"
 
 	"srv.exe.dev/db"
@@ -77,6 +79,8 @@ func (s *Server) Serve(addr string) error {
 	mux.HandleFunc("POST /api/github/pull", s.HandleGitHubPull)
 	mux.HandleFunc("POST /api/github/push", s.HandleGitHubPush)
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir(s.StaticDir))))
+	// Serve service worker from root for proper PWA scope
+	mux.HandleFunc("GET /sw.js", s.HandleServiceWorker)
 	
 	// Wrap with CORS middleware for extension support
 	handler := s.corsMiddleware(mux)
@@ -148,18 +152,49 @@ func (s *Server) HandleExtensionPage(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (s *Server) HandleServiceWorker(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/javascript")
+	w.Header().Set("Service-Worker-Allowed", "/")
+	http.ServeFile(w, r, filepath.Join(s.StaticDir, "sw.js"))
+}
+
 func (s *Server) HandleShare(w http.ResponseWriter, r *http.Request) {
 	// Handle PWA share target
-	url := r.URL.Query().Get("url")
+	sharedURL := r.URL.Query().Get("url")
 	text := r.URL.Query().Get("text")
 	title := r.URL.Query().Get("title")
 	
-	// Sometimes the URL comes in the text field
-	if url == "" && text != "" {
-		url = text
+	// Try to extract URL from various sources
+	if sharedURL == "" {
+		// Sometimes apps put the URL in the text field
+		// Try to extract a URL from the text
+		if text != "" {
+			// Look for URLs in the text (common with LinkedIn, Instagram, etc.)
+			urlRegex := regexp.MustCompile(`https?://[^\s<>"']+`)
+			matches := urlRegex.FindAllString(text, -1)
+			if len(matches) > 0 {
+				// Use the last URL found (often the actual content URL)
+				sharedURL = matches[len(matches)-1]
+			} else {
+				// No URL found, use the text as-is (might be a plain URL)
+				sharedURL = text
+			}
+		}
 	}
 	
-	// Redirect to main page with save parameters
-	redirectURL := fmt.Sprintf("/?save=%s&title=%s", url, title)
+	// If we still have text and no title, use a cleaned version as title
+	if title == "" && text != "" && text != sharedURL {
+		// Remove the URL from text to get just the description
+		title = regexp.MustCompile(`https?://[^\s<>"']+`).ReplaceAllString(text, "")
+		title = regexp.MustCompile(`\s+`).ReplaceAllString(title, " ")
+		if len(title) > 200 {
+			title = title[:200] + "..."
+		}
+	}
+	
+	// Redirect to main page with URL-encoded save parameters
+	redirectURL := fmt.Sprintf("/?save=%s&title=%s", 
+		url.QueryEscape(sharedURL), 
+		url.QueryEscape(title))
 	http.Redirect(w, r, redirectURL, http.StatusFound)
 }
