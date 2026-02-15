@@ -162,10 +162,13 @@
             </div>
             ` : ''}
             
-            <div class="flex gap-2 pt-2 border-t border-gray-600">
+            <div class="flex gap-2 pt-2 border-t border-gray-600 flex-wrap">
                 <a href="${b.url}" target="_blank" class="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded flex items-center gap-2">
                     <i class="fas fa-external-link-alt"></i> Open
                 </a>
+                <button onclick="addToTry(${b.id})" class="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded flex items-center gap-2" id="try-btn-${b.id}">
+                    <i class="fas fa-flask"></i> ${tags.some(t => t.name.toLowerCase() === 'try') ? 'Added!' : 'Try'}
+                </button>
                 <button onclick="deleteBookmark(${b.id})" class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded">
                     <i class="fas fa-trash"></i>
                 </button>
@@ -211,6 +214,22 @@
         await fetch(`/api/bookmarks/${id}`, { method: 'DELETE' });
         hideViewModal();
         loadBookmarks(currentSource);
+    }
+
+    async function addToTry(id) {
+        const btn = document.getElementById(`try-btn-${id}`);
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        
+        try {
+            await fetch(`/api/bookmarks/${id}/tag/try`, { method: 'POST' });
+            btn.innerHTML = '<i class="fas fa-check"></i> Added!';
+            btn.classList.remove('bg-purple-600', 'hover:bg-purple-700');
+            btn.classList.add('bg-green-600');
+        } catch(e) {
+            btn.innerHTML = '<i class="fas fa-times"></i> Error';
+            btn.disabled = false;
+        }
     }
 
     async function deleteBookmarkDirect(id) {

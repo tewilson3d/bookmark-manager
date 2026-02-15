@@ -521,3 +521,43 @@ func getScreenshotService(pageURL string) string {
 	// This provides a visual preview of the page
 	return "https://image.thum.io/get/width/600/crop/400/" + pageURL
 }
+
+func (s *Server) HandleAddTagToBookmark(w http.ResponseWriter, r *http.Request) {
+	bidStr := r.PathValue("id")
+	tagName := r.PathValue("tag")
+	
+	bid, err := strconv.ParseInt(bidStr, 10, 64)
+	if err != nil {
+		writeError(w, "invalid bookmark id", 400)
+		return
+	}
+	
+	// Create or get the tag
+	q := dbgen.New(s.DB)
+	tag, err := q.CreateTag(r.Context(), dbgen.CreateTagParams{
+		Name:  strings.TrimSpace(tagName),
+		Color: strPtr("#8b5cf6"),
+	})
+	if err != nil {
+		// Tag might already exist, try to get it
+		tags, _ := q.ListTags(r.Context())
+		for _, t := range tags {
+			if strings.EqualFold(t.Name, tagName) {
+				tag = t
+				break
+			}
+		}
+	}
+	
+	if tag.ID == 0 {
+		writeError(w, "could not create or find tag", 500)
+		return
+	}
+	
+	// Add the tag to the bookmark (ignore if already exists)
+	_, _ = s.DB.ExecContext(r.Context(), 
+		"INSERT OR IGNORE INTO bookmark_tags (bookmark_id, tag_id) VALUES (?, ?)",
+		bid, tag.ID)
+	
+	writeJSON(w, map[string]any{"success": true, "tag": tag.Name})
+}
