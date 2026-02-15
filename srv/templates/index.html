@@ -429,7 +429,15 @@
         loading.classList.remove('hidden');
         grid.innerHTML = '';
         
-        const url = source ? `/api/bookmarks?source=${source}` : '/api/bookmarks';
+        // "Things to Try" shows bookmarks tagged with "try"
+        let url;
+        if (source === 'things-to-try') {
+            url = '/api/bookmarks?tag=try';
+        } else if (source) {
+            url = `/api/bookmarks?source=${source}`;
+        } else {
+            url = '/api/bookmarks';
+        }
         const res = await fetch(url);
         const bookmarks = await res.json();
         

@@ -18,6 +18,7 @@ func (s *Server) HandleListBookmarks(w http.ResponseWriter, r *http.Request) {
 	limit, _ := strconv.ParseInt(r.URL.Query().Get("limit"), 10, 64)
 	offset, _ := strconv.ParseInt(r.URL.Query().Get("offset"), 10, 64)
 	source := r.URL.Query().Get("source")
+	tag := r.URL.Query().Get("tag")
 
 	if limit <= 0 || limit > 100 {
 		limit = 50
@@ -25,7 +26,32 @@ func (s *Server) HandleListBookmarks(w http.ResponseWriter, r *http.Request) {
 
 	var bookmarks []dbgen.Bookmark
 	var err error
-	if source != "" {
+	if tag != "" {
+		// Query bookmarks by tag name
+		rows, qerr := s.DB.QueryContext(r.Context(), `
+			SELECT DISTINCT b.id, b.url, b.title, b.description, b.summary, b.source_type, 
+			       b.favicon_url, b.image_url, b.created_at, b.updated_at
+			FROM bookmarks b
+			JOIN bookmark_tags bt ON b.id = bt.bookmark_id
+			JOIN tags t ON bt.tag_id = t.id
+			WHERE LOWER(t.name) = LOWER(?)
+			ORDER BY b.created_at DESC
+			LIMIT ? OFFSET ?`, tag, limit, offset)
+		if qerr != nil {
+			writeError(w, qerr.Error(), 500)
+			return
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var b dbgen.Bookmark
+			if err := rows.Scan(&b.ID, &b.Url, &b.Title, &b.Description, &b.Summary, 
+				&b.SourceType, &b.FaviconUrl, &b.ImageUrl, &b.CreatedAt, &b.UpdatedAt); err != nil {
+				writeError(w, err.Error(), 500)
+				return
+			}
+			bookmarks = append(bookmarks, b)
+		}
+	} else if source != "" {
 		bookmarks, err = q.ListBookmarksBySource(r.Context(), dbgen.ListBookmarksBySourceParams{
 			SourceType: source, Limit: limit, Offset: offset,
 		})
