@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#6366f1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Bookmarks">
+    <link rel="apple-touch-icon" href="./icon-192.png">
+    <link rel="manifest" href="./manifest.json">
+    <title>Bookmark Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        .source-web { background: #3b82f6; }
+        .source-instagram { background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888); }
+        .source-linkedin { background: #0077b5; }
+        .source-youtube { background: #ff0000; }
+        .source-3d { background: #10b981; }
+        .source-things-to-try { background: #8b5cf6; }
+        .bookmark-card.selected { ring: 2px; outline: 2px solid #6366f1; }
+        .selection-mode .bookmark-card { cursor: pointer; }
+        
+        /* Mobile styles */
+        @media (max-width: 768px) {
+            .sidebar { 
+                position: fixed;
+                left: -100%;
+                top: 0;
+                bottom: 0;
+                z-index: 50;
+                transition: left 0.3s ease;
+                width: 280px;
+            }
+            .sidebar.open { left: 0; }
+            .sidebar-overlay {
+                display: none;
+                position: fixed;
+                inset: 0;
+                background: rgba(0,0,0,0.5);
+                z-index: 40;
+            }
+            .sidebar-overlay.open { display: block; }
+            .mobile-header { display: flex !important; }
+            .main-content { margin-left: 0 !important; }
+        }
+        @media (min-width: 769px) {
+            .mobile-header { display: none !important; }
+            .sidebar-overlay { display: none !important; }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+    <!-- Mobile Header -->
+    <div class="mobile-header hidden bg-gray-800 p-4 items-center justify-between sticky top-0 z-30">
+        <button onclick="toggleSidebar()" class="text-white text-xl">
+            <i class="fas fa-bars"></i>
+        </button>
+        <h1 class="text-xl font-bold flex items-center gap-2">
+            <i class="fas fa-bookmark text-indigo-500"></i> Bookmarks
+        </h1>
+        <button onclick="showAddModal()" class="text-indigo-400">
+            <i class="fas fa-plus text-xl"></i>
+        </button>
+    </div>
+    
+    <!-- Sidebar Overlay -->
+    <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
+    
+    <div class="flex flex-col md:flex-row min-h-screen md:h-screen">
+        <!-- Sidebar -->
+        <aside id="sidebar" class="sidebar w-64 bg-gray-800 p-4 flex flex-col md:relative md:left-0">
+            <h1 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                <i class="fas fa-bookmark text-indigo-500"></i> Bookmarks
+            </h1>
+            
+            <nav class="space-y-2 flex-1 overflow-y-auto">
+                <button onclick="loadBookmarks(); closeSidebarOnMobile()" class="w-full text-left px-3 py-2 rounded hover:bg-gray-700 flex items-center gap-2">
+                    <i class="fas fa-home"></i> All Bookmarks
+                </button>
+                <button onclick="loadBookmarks('web'); closeSidebarOnMobile()" class="w-full text-left px-3 py-2 rounded hover:bg-gray-700 flex items-center gap-2">
+                    <i class="fas fa-globe"></i> Web
+                </button>
+                <button onclick="loadBookmarks('instagram'); closeSidebarOnMobile()" class="w-full text-left px-3 py-2 rounded hover:bg-gray-700 flex items-center gap-2">
+                    <i class="fab fa-instagram"></i> Instagram
+                </button>
+                <button onclick="loadBookmarks('linkedin'); closeSidebarOnMobile()" class="w-full text-left px-3 py-2 rounded hover:bg-gray-700 flex items-center gap-2">
+                    <i class="fab fa-linkedin"></i> LinkedIn
+                </button>
+                <button onclick="loadBookmarks('youtube'); closeSidebarOnMobile()" class="w-full text-left px-3 py-2 rounded hover:bg-gray-700 flex items-center gap-2">
+                    <i class="fab fa-youtube"></i> YouTube
+                </button>
+                <button onclick="loadBookmarks('3d'); closeSidebarOnMobile()" class="w-full text-left px-3 py-2 rounded hover:bg-gray-700 flex items-center gap-2">
+                    <i class="fas fa-cube"></i> 3D
+                </button>
+                <button onclick="loadBookmarks('things-to-try'); closeSidebarOnMobile()" class="w-full text-left px-3 py-2 rounded hover:bg-gray-700 flex items-center gap-2">
+                    <i class="fas fa-flask"></i> Things to Try
+                </button>
+                
+                <div class="border-t border-gray-700 my-4"></div>
+                
+                <div class="text-gray-400 text-sm mb-2 flex items-center justify-between">
+                    <span>Collections</span>
+                    <button onclick="showCreateCollectionModal()" class="text-indigo-400 hover:text-indigo-300"><i class="fas fa-plus"></i></button>
+                </div>
+                <div id="collections-list"></div>
+                
+                <div class="border-t border-gray-700 my-4"></div>
+                
+                <div class="text-gray-400 text-sm mb-2">Tags</div>
+                <div id="tags-list" class="flex flex-wrap gap-1"></div>
+            </nav>
+            
+            <button onclick="showAddModal()" class="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg flex items-center justify-center gap-2 mb-2">
+                <i class="fas fa-plus"></i> Add Bookmark
+            </button>
+            <button onclick="showWebSearchModal()" class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg flex items-center justify-center gap-2 mb-2">
+                <i class="fas fa-globe"></i> Discover
+            </button>
+            <button onclick="showToolsModal()" class="bg-gray-600 hover:bg-gray-500 px-4 py-2 rounded-lg flex items-center justify-center gap-2 text-sm mb-2">
+                <i class="fas fa-tools"></i> Tools
+            </button>
+            <a href="/extension" class="bg-yellow-600 hover:bg-yellow-500 px-4 py-2 rounded-lg flex items-center justify-center gap-2 text-sm">
+                <i class="fas fa-puzzle-piece"></i> Get Extension
+            </a>
+        </aside>
+        
+        <!-- Main Content -->
+        <main class="main-content flex-1 flex flex-col overflow-hidden">
+            <!-- Search Bar -->
+            <div class="p-4 bg-gray-800 border-b border-gray-700">
+                <div class="relative max-w-2xl mx-auto flex gap-2">
+                    <div class="relative flex-1">
+                        <input type="text" id="search-input" placeholder="Search bookmarks..." 
+                            class="w-full bg-gray-700 rounded-lg px-4 py-2 pl-10 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                    </div>
+                    <button onclick="toggleSelectionMode()" id="select-btn" class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg" title="Select bookmarks">
+                        <i class="fas fa-check-square"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Selection Toolbar -->
+            <div id="selection-toolbar" class="hidden bg-indigo-600 px-4 py-2 flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                    <button onclick="toggleSelectionMode()" class="text-white hover:text-gray-200">
+                        <i class="fas fa-times"></i>
+                    </button>
+                    <span id="selection-count">0 selected</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <select id="move-to-category" onchange="moveSelectedToCategory()" class="bg-indigo-700 text-white rounded px-3 py-1 text-sm">
+                        <option value="">Move to category...</option>
+                        <option value="web">Web</option>
+                        <option value="instagram">Instagram</option>
+                        <option value="linkedin">LinkedIn</option>
+                        <option value="youtube">YouTube</option>
+                        <option value="3d">3D</option>
+                        <option value="things-to-try">Things to Try</option>
+                    </select>
+                    <select id="add-to-collection" onchange="addSelectedToCollection()" class="bg-indigo-700 text-white rounded px-3 py-1 text-sm">
+                        <option value="">Add to collection...</option>
+                    </select>
+                    <button onclick="deleteSelected()" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm">
+                        <i class="fas fa-trash"></i> Delete
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Bookmarks Grid -->
+            <div class="flex-1 overflow-auto p-6">
+                <div id="bookmarks-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"></div>
+                <div id="loading" class="text-center py-8 hidden">
+                    <i class="fas fa-spinner fa-spin text-2xl"></i>
+                </div>
+                <div id="empty-state" class="text-center py-16 hidden">
+                    <i class="fas fa-bookmark text-6xl text-gray-600 mb-4"></i>
+                    <p class="text-gray-400">No bookmarks yet. Add your first one!</p>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <!-- Add Bookmark Modal -->
+    <div id="add-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+        <div class="bg-gray-800 rounded-xl p-6 w-full max-w-lg mx-4">
+            <h2 class="text-xl font-bold mb-4">Add Bookmark</h2>
+            <form id="add-form" class="space-y-4">
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">URL</label>
+                    <div class="flex gap-2">
+                        <input type="url" name="url" required 
+                            class="flex-1 bg-gray-700 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <button type="button" onclick="fetchMeta()" class="bg-gray-600 hover:bg-gray-500 px-3 py-2 rounded">
+                            <i class="fas fa-magic"></i>
+                        </button>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">Title</label>
+                    <input type="text" name="title" required 
+                        class="w-full bg-gray-700 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">Description</label>
+                    <textarea name="description" rows="2" 
+                        class="w-full bg-gray-700 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">Tags (comma-separated)</label>
+                    <input type="text" name="tags" placeholder="tech, tutorial, reference" 
+                        class="w-full bg-gray-700 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div class="flex justify-end gap-2 pt-4">
+                    <button type="button" onclick="hideAddModal()" class="px-4 py-2 rounded hover:bg-gray-700">Cancel</button>
+                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- View Bookmark Modal -->
+    <div id="view-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+        <div class="bg-gray-800 rounded-xl p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-auto">
+            <div id="view-content"></div>
+        </div>
+    </div>
+
+    <!-- Tools Modal -->
+    <div id="tools-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+        <div class="bg-gray-800 rounded-xl p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold"><i class="fas fa-tools"></i> Tools & Integrations</h2>
+                <button onclick="hideToolsModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
+            </div>
+            
+            <div class="space-y-4">
+                <!-- Generate All Metadata -->
+                <div class="bg-gray-700 rounded-lg p-4">
+                    <h3 class="font-semibold mb-2"><i class="fas fa-magic mr-2 text-purple-400"></i>Generate All Metadata</h3>
+                    <p class="text-gray-400 text-sm mb-3">Fill in missing preview images and summaries for all bookmarks.</p>
+                    <button onclick="generateAllMetadata()" id="generate-all-btn" class="bg-purple-600 hover:bg-purple-700 px-3 py-2 rounded text-sm">
+                        <i class="fas fa-wand-magic-sparkles mr-1"></i> Generate All
+                    </button>
+                    <div id="generate-all-status" class="text-sm mt-2 hidden"></div>
+                </div>
+
+                <!-- GitHub Integration -->
+                <div class="bg-gray-700 rounded-lg p-4">
+                    <h3 class="font-semibold mb-2"><i class="fab fa-github mr-2"></i>GitHub Integration</h3>
+                    <p class="text-gray-400 text-sm mb-3">Connect to GitHub to backup and sync your bookmark manager code.</p>
+                    <details>
+                        <summary class="text-indigo-400 text-sm cursor-pointer mb-2">Configure GitHub Repository</summary>
+                        <div class="mt-3 space-y-3">
+                            <div>
+                                <label class="block text-gray-400 text-xs mb-1">Repository URL</label>
+                                <input type="text" id="github-repo" placeholder="https://github.com/username/repo.git" 
+                                    class="w-full bg-gray-800 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block text-gray-400 text-xs mb-1">Personal Access Token</label>
+                                <input type="text" id="github-token" placeholder="ghp_xxxxxxxxxxxx" 
+                                    class="w-full bg-gray-800 rounded px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                <p class="text-gray-500 text-xs mt-1">Create at <a href="https://github.com/settings/tokens/new" target="_blank" class="text-indigo-400">GitHub Settings → Tokens</a> (need repo scope)</p>
+                            </div>
+                            <div>
+                                <label class="block text-gray-400 text-xs mb-1">Branch</label>
+                                <input type="text" id="github-branch" placeholder="main" value="main"
+                                    class="w-full bg-gray-800 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <button onclick="saveGitHubConfig()" class="bg-gray-600 hover:bg-gray-500 px-3 py-2 rounded text-sm w-full">
+                                <i class="fas fa-save mr-1"></i> Save Configuration
+                            </button>
+                            <div class="flex gap-2">
+                                <button onclick="gitPull()" class="flex-1 bg-blue-600 hover:bg-blue-700 px-3 py-2 rounded text-sm">
+                                    <i class="fas fa-download mr-1"></i> Pull
+                                </button>
+                                <button onclick="gitPush()" class="flex-1 bg-green-600 hover:bg-green-700 px-3 py-2 rounded text-sm">
+                                    <i class="fas fa-upload mr-1"></i> Push
+                                </button>
+                            </div>
+                            <div id="github-status" class="text-sm hidden"></div>
+                        </div>
+                    </details>
+                </div>
+
+                <!-- Chrome Extension -->
+                <div class="bg-gray-700 rounded-lg p-4">
+                    <h3 class="font-semibold mb-2"><i class="fab fa-chrome mr-2"></i>Chrome Extension</h3>
+                    <p class="text-gray-400 text-sm mb-3">Save bookmarks with one click from any page.</p>
+                    <a href="/extension" class="bg-indigo-600 hover:bg-indigo-700 px-3 py-2 rounded text-sm inline-block">Get Extension</a>
+                </div>
+                
+                <!-- Bookmarklet -->
+                <div class="bg-gray-700 rounded-lg p-4">
+                    <h3 class="font-semibold mb-2"><i class="fas fa-bookmark mr-2"></i>Bookmarklet (Mobile/Any Browser)</h3>
+                    <p class="text-gray-400 text-sm mb-3">Drag this button to your bookmarks bar, or on mobile, create a bookmark and paste the code.</p>
+                    <a href="javascript:(function(){window.open('https://bookmark-manager.exe.xyz:8000/?save='+encodeURIComponent(location.href)+'&title='+encodeURIComponent(document.title),'_blank')})();" 
+                       class="bg-pink-600 hover:bg-pink-700 px-3 py-2 rounded text-sm inline-block cursor-move"
+                       onclick="event.preventDefault();alert('Drag this to your bookmarks bar!');">
+                       📎 Save to Bookmarks
+                    </a>
+                    <details class="mt-3">
+                        <summary class="text-gray-400 text-sm cursor-pointer">Mobile Instructions</summary>
+                        <div class="mt-2 text-sm text-gray-400">
+                            <ol class="list-decimal list-inside space-y-1">
+                                <li>Bookmark this page</li>
+                                <li>Edit the bookmark</li>
+                                <li>Replace the URL with this code:</li>
+                            </ol>
+                            <textarea readonly class="w-full mt-2 bg-gray-800 p-2 rounded text-xs" rows="3">javascript:(function(){window.open('https://bookmark-manager.exe.xyz:8000/?save='+encodeURIComponent(location.href)+'&title='+encodeURIComponent(document.title),'_blank')})();</textarea>
+                        </div>
+                    </details>
+                </div>
+                
+                <!-- Quick Add -->
+                <div class="bg-gray-700 rounded-lg p-4">
+                    <h3 class="font-semibold mb-2"><i class="fas fa-paste mr-2"></i>Quick Paste URL</h3>
+                    <p class="text-gray-400 text-sm mb-3">Paste any URL to quickly save it.</p>
+                    <div class="flex gap-2">
+                        <input type="url" id="quick-url" placeholder="Paste URL here..." 
+                            class="flex-1 bg-gray-800 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <button onclick="quickAddURL()" class="bg-indigo-600 hover:bg-indigo-700 px-3 py-2 rounded text-sm">Add</button>
+                    </div>
+                </div>
+
+                <!-- Instagram Import -->
+                <div class="bg-gray-700 rounded-lg p-4">
+                    <h3 class="font-semibold mb-2"><i class="fab fa-instagram mr-2 text-pink-400"></i>Import Instagram Saved Posts</h3>
+                    <p class="text-gray-400 text-sm mb-3">
+                        <strong>Manual:</strong> Open post → Share → Copy Link → Paste in Quick Paste above
+                    </p>
+                    <details>
+                        <summary class="text-pink-400 text-sm cursor-pointer mb-2">Import from Instagram Data Export</summary>
+                        <div class="mt-3 space-y-2">
+                            <p class="text-gray-400 text-xs">1. Go to Instagram → Settings → Download your information</p>
+                            <p class="text-gray-400 text-xs">2. Select "Saved posts" and request download</p>
+                            <p class="text-gray-400 text-xs">3. Upload the JSON file here:</p>
+                            <input type="file" id="instagram-file" accept=".json" 
+                                class="w-full text-sm text-gray-400 file:mr-2 file:py-2 file:px-3 file:rounded file:border-0 file:bg-pink-600 file:text-white file:cursor-pointer">
+                            <button onclick="importInstagramData()" class="bg-pink-600 hover:bg-pink-700 px-3 py-2 rounded text-sm w-full">
+                                <i class="fab fa-instagram mr-1"></i> Import Saved Posts
+                            </button>
+                            <div id="instagram-import-status" class="text-sm hidden"></div>
+                        </div>
+                    </details>
+                </div>
+
+                <!-- LinkedIn Tips -->
+                <div class="bg-gray-700 rounded-lg p-4">
+                    <h3 class="font-semibold mb-2"><i class="fab fa-linkedin mr-2 text-blue-400"></i>Save from LinkedIn</h3>
+                    <p class="text-gray-400 text-sm">
+                        <strong>On mobile:</strong> Tap ••• on post → Copy link → Paste above<br>
+                        <strong>On desktop:</strong> Use the Chrome extension on linkedin.com
+                    </p>
+                </div>
+
+                <!-- YouTube Import -->
+                <div class="bg-gray-700 rounded-lg p-4">
+                    <h3 class="font-semibold mb-2"><i class="fab fa-youtube mr-2 text-red-500"></i>Import YouTube Playlist</h3>
+                    <p class="text-gray-400 text-sm mb-3">Import all videos from a YouTube playlist at once.</p>
+                    <div class="space-y-2">
+                        <input type="url" id="youtube-playlist-url" placeholder="Paste YouTube playlist URL..." 
+                            class="w-full bg-gray-800 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
+                        <details class="text-sm">
+                            <summary class="text-gray-400 cursor-pointer">Optional: YouTube API Key (for private playlists)</summary>
+                            <input type="text" id="youtube-api-key" placeholder="API Key (optional)" 
+                                class="w-full mt-2 bg-gray-800 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
+                            <p class="text-gray-500 text-xs mt-1">Get a free API key from <a href="https://console.cloud.google.com/apis/credentials" target="_blank" class="text-indigo-400">Google Cloud Console</a></p>
+                        </details>
+                        <button onclick="importYouTubePlaylist()" class="bg-red-600 hover:bg-red-700 px-3 py-2 rounded text-sm w-full">
+                            <i class="fab fa-youtube mr-1"></i> Import Playlist
+                        </button>
+                        <div id="youtube-import-status" class="text-sm hidden"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Web Search Modal -->
+    <div id="web-search-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+        <div class="bg-gray-800 rounded-xl p-6 w-full max-w-3xl mx-4 max-h-[90vh] overflow-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold"><i class="fas fa-globe"></i> Discover Similar Content</h2>
+                <button onclick="hideWebSearchModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="mb-4">
+                <div class="flex gap-2">
+                    <input type="text" id="web-search-input" placeholder="Search the web..." 
+                        class="flex-1 bg-gray-700 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <button onclick="doWebSearch()" class="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded">
+                        <i class="fas fa-search"></i> Search
+                    </button>
+                </div>
+            </div>
+            <div id="web-search-results" class="space-y-3"></div>
+        </div>
+    </div>
+
+    <script src="./app.js"></script>
+
+</body>
+</html>

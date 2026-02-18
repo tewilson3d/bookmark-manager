@@ -1,0 +1,18 @@
+{
+  "name": "bookmarks-mobile",
+  "version": "1.0.0",
+  "description": "Bookmark Manager iOS App with Share Extension",
+  "main": "index.js",
+  "scripts": {
+    "build": "npx cap copy ios",
+    "open": "npx cap open ios",
+    "sync": "npx cap sync ios"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@capacitor/core": "^8.1.0",
+    "@capacitor/cli": "^8.1.0",
+    "@capacitor/ios": "^8.1.0"
+  }
+}
