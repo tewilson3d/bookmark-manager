@@ -74,6 +74,7 @@ func (s *Server) Serve(addr string) error {
 	mux.HandleFunc("POST /api/analyze", s.HandleAnalyzeURL)
 	mux.HandleFunc("POST /api/bookmarks/{id}/analyze", s.HandleAnalyzeBookmark)
 	mux.HandleFunc("POST /api/bookmarks/{id}/tag/{tag}", s.HandleAddTagToBookmark)
+	mux.HandleFunc("DELETE /api/bookmarks/{id}/tag/{tag}", s.HandleRemoveTagFromBookmark)
 	mux.HandleFunc("POST /api/generate-all", s.HandleGenerateAllMetadata)
 	mux.HandleFunc("GET /api/github/config", s.HandleGitHubConfig)
 	mux.HandleFunc("POST /api/github/config", s.HandleGitHubConfig)

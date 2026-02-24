@@ -561,3 +561,41 @@ func (s *Server) HandleAddTagToBookmark(w http.ResponseWriter, r *http.Request) 
 	
 	writeJSON(w, map[string]any{"success": true, "tag": tag.Name})
 }
+
+func (s *Server) HandleRemoveTagFromBookmark(w http.ResponseWriter, r *http.Request) {
+	bidStr := r.PathValue("id")
+	tagName := r.PathValue("tag")
+	
+	bid, err := strconv.ParseInt(bidStr, 10, 64)
+	if err != nil {
+		writeError(w, "invalid bookmark id", 400)
+		return
+	}
+	
+	// Find the tag
+	q := dbgen.New(s.DB)
+	tags, _ := q.ListTags(r.Context())
+	var tagID int64
+	for _, t := range tags {
+		if strings.EqualFold(t.Name, tagName) {
+			tagID = t.ID
+			break
+		}
+	}
+	
+	if tagID == 0 {
+		writeError(w, "tag not found", 404)
+		return
+	}
+	
+	// Remove the tag from the bookmark
+	_, err = s.DB.ExecContext(r.Context(), 
+		"DELETE FROM bookmark_tags WHERE bookmark_id = ? AND tag_id = ?",
+		bid, tagID)
+	if err != nil {
+		writeError(w, err.Error(), 500)
+		return
+	}
+	
+	writeJSON(w, map[string]any{"success": true, "removed": tagName})
+}
