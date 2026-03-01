@@ -172,6 +172,10 @@ const API_BASE = 'https://bookmark-manager.exe.xyz:8000';
                 <button onclick="addToTry(${b.id})" class="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded flex items-center gap-2" id="try-btn-${b.id}">
                     <i class="fas fa-flask"></i> ${tags.some(t => t.name.toLowerCase() === 'try') ? 'Added!' : 'Try'}
                 </button>
+                ${tags.some(t => t.name.toLowerCase() === 'try') ? `
+                <button onclick="finishTry(${b.id})" class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded flex items-center gap-2" id="finish-btn-${b.id}">
+                    <i class="fas fa-check"></i> Finished
+                </button>` : ''}
                 <button onclick="deleteBookmark(${b.id})" class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded">
                     <i class="fas fa-trash"></i>
                 </button>
@@ -229,6 +233,25 @@ const API_BASE = 'https://bookmark-manager.exe.xyz:8000';
             btn.innerHTML = '<i class="fas fa-check"></i> Added!';
             btn.classList.remove('bg-purple-600', 'hover:bg-purple-700');
             btn.classList.add('bg-green-600');
+        } catch(e) {
+            btn.innerHTML = '<i class="fas fa-times"></i> Error';
+            btn.disabled = false;
+        }
+    }
+
+    async function finishTry(id) {
+        const btn = document.getElementById(`finish-btn-${id}`);
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        
+        try {
+            await fetch(`${API_BASE}/api/bookmarks/${id}/tag/try`, { method: 'DELETE' });
+            btn.innerHTML = '<i class="fas fa-check"></i> Done!';
+            // Close modal and refresh if we're in Things to Try view
+            setTimeout(() => {
+                hideViewModal();
+                loadBookmarks(currentSource);
+            }, 500);
         } catch(e) {
             btn.innerHTML = '<i class="fas fa-times"></i> Error';
             btn.disabled = false;
