@@ -571,6 +571,40 @@
         loadGitHubConfig();
     };
 
+    async function removeDuplicates() {
+        const btn = document.getElementById('remove-dupes-btn');
+        const statusDiv = document.getElementById('remove-dupes-status');
+        
+        if (!confirm('This will remove all duplicate bookmarks (same URL), keeping the oldest one. Continue?')) {
+            return;
+        }
+        
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Processing...';
+        statusDiv.className = 'text-sm mt-2 bg-gray-800 p-2 rounded';
+        statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Finding and removing duplicates...';
+        
+        try {
+            const res = await fetch('/api/remove-duplicates', { method: 'POST' });
+            const data = await res.json();
+            
+            if (data.error) {
+                statusDiv.className = 'text-sm mt-2 bg-red-900 p-2 rounded';
+                statusDiv.innerHTML = '<i class="fas fa-times"></i> ' + data.error;
+            } else {
+                statusDiv.className = 'text-sm mt-2 bg-green-900 p-2 rounded';
+                statusDiv.innerHTML = `<i class="fas fa-check"></i> Done! Removed ${data.deleted} duplicate bookmarks.`;
+                loadBookmarks(currentSource);
+            }
+        } catch (err) {
+            statusDiv.className = 'text-sm mt-2 bg-red-900 p-2 rounded';
+            statusDiv.innerHTML = '<i class="fas fa-times"></i> Error removing duplicates';
+        }
+        
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-broom mr-1"></i> Remove Duplicates';
+    }
+
     async function generateAllMetadata() {
         const btn = document.getElementById('generate-all-btn');
         const statusDiv = document.getElementById('generate-all-status');

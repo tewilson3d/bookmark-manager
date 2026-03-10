@@ -599,3 +599,20 @@ func (s *Server) HandleRemoveTagFromBookmark(w http.ResponseWriter, r *http.Requ
 	
 	writeJSON(w, map[string]any{"success": true, "removed": tagName})
 }
+
+func (s *Server) HandleRemoveDuplicates(w http.ResponseWriter, r *http.Request) {
+	// Find and remove duplicate bookmarks (same URL), keeping the oldest one
+	result, err := s.DB.ExecContext(r.Context(), `
+		DELETE FROM bookmarks 
+		WHERE id NOT IN (
+			SELECT MIN(id) FROM bookmarks GROUP BY url
+		)
+	`)
+	if err != nil {
+		writeError(w, err.Error(), 500)
+		return
+	}
+	
+	deleted, _ := result.RowsAffected()
+	writeJSON(w, map[string]any{"success": true, "deleted": deleted})
+}
