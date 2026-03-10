@@ -19,6 +19,7 @@
         .source-youtube { background: #ff0000; }
         .source-3d { background: #10b981; }
         .source-things-to-try { background: #8b5cf6; }
+        .source-ai { background: #06b6d4; }
         .bookmark-card.selected { ring: 2px; outline: 2px solid #6366f1; }
         .selection-mode .bookmark-card { cursor: pointer; }
         
@@ -97,6 +98,9 @@
                 <button onclick="loadBookmarks('things-to-try'); closeSidebarOnMobile()" class="w-full text-left px-3 py-2 rounded hover:bg-gray-700 flex items-center gap-2">
                     <i class="fas fa-flask"></i> Things to Try
                 </button>
+                <button onclick="loadBookmarks('ai'); closeSidebarOnMobile()" class="w-full text-left px-3 py-2 rounded hover:bg-gray-700 flex items-center gap-2">
+                    <i class="fas fa-robot"></i> AI
+                </button>
                 
                 <div class="border-t border-gray-700 my-4"></div>
                 
@@ -159,6 +163,7 @@
                         <option value="youtube">YouTube</option>
                         <option value="3d">3D</option>
                         <option value="things-to-try">Things to Try</option>
+                        <option value="ai">AI</option>
                     </select>
                     <select id="add-to-collection" onchange="addSelectedToCollection()" class="bg-indigo-700 text-white rounded px-3 py-1 text-sm">
                         <option value="">Add to collection...</option>

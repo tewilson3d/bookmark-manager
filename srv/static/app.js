@@ -26,10 +26,12 @@
         loading.classList.remove('hidden');
         grid.innerHTML = '';
         
-        // "Things to Try" shows bookmarks tagged with "try"
+        // "Things to Try" and "AI" show bookmarks by tag
         let url;
         if (source === 'things-to-try') {
             url = '/api/bookmarks?tag=try';
+        } else if (source === 'ai') {
+            url = '/api/bookmarks?tag=ai';
         } else if (source) {
             url = `/api/bookmarks?source=${source}`;
         } else {
@@ -66,7 +68,8 @@
                           b.source_type === 'linkedin' ? 'fab fa-linkedin' : 
                           b.source_type === 'youtube' ? 'fab fa-youtube' : 
                           b.source_type === '3d' ? 'fas fa-cube' :
-                          b.source_type === 'things-to-try' ? 'fas fa-flask' : 'fas fa-globe';
+                          b.source_type === 'things-to-try' ? 'fas fa-flask' :
+                          b.source_type === 'ai' ? 'fas fa-robot' : 'fas fa-globe';
         
         // Use favicon if available, otherwise show source icon
         const faviconHtml = b.favicon_url 
