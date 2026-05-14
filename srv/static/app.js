@@ -69,7 +69,11 @@
                           b.source_type === 'youtube' ? 'fab fa-youtube' : 
                           b.source_type === '3d' ? 'fas fa-cube' :
                           b.source_type === 'things-to-try' ? 'fas fa-flask' :
-                          b.source_type === 'ai' ? 'fas fa-robot' : 'fas fa-globe';
+                          b.source_type === 'ai' ? 'fas fa-robot' :
+                          b.source_type === 'blender' ? 'fas fa-blender' :
+                          b.source_type === 'maya' ? 'fas fa-sitemap' :
+                          b.source_type === 'unreal' ? 'fas fa-gamepad' :
+                          b.source_type === 'models' ? 'fas fa-shapes' : 'fas fa-globe';
         
         // Use favicon if available, otherwise show source icon
         const faviconHtml = b.favicon_url 

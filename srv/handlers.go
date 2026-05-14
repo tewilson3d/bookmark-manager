@@ -95,7 +95,12 @@ func (s *Server) HandleCreateBookmark(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if req.SourceType == "" {
-		req.SourceType = detectSourceType(req.URL)
+		// First check if tags suggest a source type
+		if tagSource := detectSourceTypeFromTags(req.Tags); tagSource != "" {
+			req.SourceType = tagSource
+		} else {
+			req.SourceType = detectSourceType(req.URL)
+		}
 	}
 	
 	// Auto-fetch preview image if not provided
@@ -432,6 +437,25 @@ func detectSourceType(url string) string {
 		return "youtube"
 	}
 	return "web"
+}
+
+// detectSourceTypeFromTags checks tags and returns an appropriate source type
+// Returns empty string if no matching tags found
+func detectSourceTypeFromTags(tags []string) string {
+	for _, tag := range tags {
+		lowerTag := strings.ToLower(strings.TrimSpace(tag))
+		switch lowerTag {
+		case "blender":
+			return "blender"
+		case "maya":
+			return "maya"
+		case "unreal":
+			return "unreal"
+		case "rig", "rigging", "model", "models":
+			return "models"
+		}
+	}
+	return ""
 }
 
 // getPreviewImage fetches og:image or other preview image for a URL
