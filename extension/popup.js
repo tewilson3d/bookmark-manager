@@ -1,4 +1,4 @@
-const DEFAULT_SERVER = 'https://bookmark-manager.exe.xyz:8000';
+const DEFAULT_SERVER = 'https://bookmark-manager.exe.xyz';
 
 let serverUrl = DEFAULT_SERVER;
 

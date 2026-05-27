@@ -4,7 +4,7 @@
   "version": "1.0",
   "description": "Save and organize bookmarks from any page",
   "permissions": ["activeTab", "storage", "scripting"],
-  "host_permissions": ["https://bookmark-manager.exe.xyz:8000/*", "http://localhost:8000/*"],
+  "host_permissions": ["https://bookmark-manager.exe.xyz/*", "http://localhost:8000/*"],
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
