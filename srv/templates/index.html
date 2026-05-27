@@ -24,6 +24,8 @@
         .source-maya { background: #00b4b4; }
         .source-unreal { background: #313131; }
         .source-models { background: #e91e63; }
+        .source-materials { background: #9c27b0; }
+        .source-jobs { background: #f59e0b; }
         .bookmark-card.selected { ring: 2px; outline: 2px solid #6366f1; }
         .selection-mode .bookmark-card { cursor: pointer; }
         
@@ -117,6 +119,12 @@
                 <button onclick="loadBookmarks('models'); closeSidebarOnMobile()" class="w-full text-left px-3 py-2 rounded hover:bg-gray-700 flex items-center gap-2">
                     <i class="fas fa-shapes"></i> Models
                 </button>
+                <button onclick="loadBookmarks('materials'); closeSidebarOnMobile()" class="w-full text-left px-3 py-2 rounded hover:bg-gray-700 flex items-center gap-2">
+                    <i class="fas fa-fill-drip"></i> Materials
+                </button>
+                <button onclick="loadBookmarks('jobs'); closeSidebarOnMobile()" class="w-full text-left px-3 py-2 rounded hover:bg-gray-700 flex items-center gap-2">
+                    <i class="fas fa-briefcase"></i> Jobs
+                </button>
                 
                 <div class="border-t border-gray-700 my-4"></div>
                 
@@ -128,8 +136,7 @@
                 
                 <div class="border-t border-gray-700 my-4"></div>
                 
-                <div class="text-gray-400 text-sm mb-2">Tags</div>
-                <div id="tags-list" class="flex flex-wrap gap-1"></div>
+
             </nav>
             
             <button onclick="showAddModal()" class="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg flex items-center justify-center gap-2 mb-2">
@@ -184,6 +191,8 @@
                         <option value="maya">Maya</option>
                         <option value="unreal">Unreal</option>
                         <option value="models">Models</option>
+                        <option value="materials">Materials</option>
+                        <option value="jobs">Jobs</option>
                     </select>
                     <select id="add-to-collection" onchange="addSelectedToCollection()" class="bg-indigo-700 text-white rounded px-3 py-1 text-sm">
                         <option value="">Add to collection...</option>
@@ -270,6 +279,16 @@
                         <i class="fas fa-broom mr-1"></i> Remove Duplicates
                     </button>
                     <div id="remove-dupes-status" class="text-sm mt-2 hidden"></div>
+                </div>
+
+                <!-- Auto-Categorize by Tags -->
+                <div class="bg-gray-700 rounded-lg p-4">
+                    <h3 class="font-semibold mb-2"><i class="fas fa-tags mr-2 text-green-400"></i>Auto-Categorize by Tags</h3>
+                    <p class="text-gray-400 text-sm mb-3">Automatically assign bookmarks to categories based on their tags (Blender, Maya, Unreal, Models, Materials, AI, 3D).</p>
+                    <button onclick="autoCategorize()" id="auto-cat-btn" class="bg-green-600 hover:bg-green-700 px-3 py-2 rounded text-sm">
+                        <i class="fas fa-magic mr-1"></i> Auto-Categorize
+                    </button>
+                    <div id="auto-cat-status" class="text-sm mt-2 hidden"></div>
                 </div>
 
                 <!-- Generate All Metadata -->

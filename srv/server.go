@@ -81,6 +81,7 @@ func (s *Server) Serve(addr string) error {
 	mux.HandleFunc("POST /api/github/pull", s.HandleGitHubPull)
 	mux.HandleFunc("POST /api/github/push", s.HandleGitHubPush)
 	mux.HandleFunc("POST /api/remove-duplicates", s.HandleRemoveDuplicates)
+	mux.HandleFunc("POST /api/auto-categorize", s.HandleAutoCategorizeTags)
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir(s.StaticDir))))
 	// Serve service worker from root for proper PWA scope
 	mux.HandleFunc("GET /sw.js", s.HandleServiceWorker)

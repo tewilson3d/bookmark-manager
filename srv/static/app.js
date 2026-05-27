@@ -73,7 +73,9 @@
                           b.source_type === 'blender' ? 'fas fa-blender' :
                           b.source_type === 'maya' ? 'fas fa-sitemap' :
                           b.source_type === 'unreal' ? 'fas fa-gamepad' :
-                          b.source_type === 'models' ? 'fas fa-shapes' : 'fas fa-globe';
+                          b.source_type === 'models' ? 'fas fa-shapes' :
+                          b.source_type === 'materials' ? 'fas fa-fill-drip' :
+                          b.source_type === 'jobs' ? 'fas fa-briefcase' : 'fas fa-globe';
         
         // Use favicon if available, otherwise show source icon
         const faviconHtml = b.favicon_url 
@@ -340,7 +342,7 @@
         
         hideAddModal();
         loadBookmarks(currentSource);
-        loadTags();
+
     });
 
     document.getElementById('search-input').addEventListener('input', (e) => {
@@ -362,14 +364,6 @@
         (data.bookmarks || []).forEach(b => grid.appendChild(createCard(b)));
     }
 
-    async function loadTags() {
-        const res = await fetch('/api/tags');
-        const tags = await res.json();
-        const container = document.getElementById('tags-list');
-        container.innerHTML = (tags || []).map(t => 
-            `<span class="bg-gray-700 px-2 py-1 rounded text-xs cursor-pointer hover:bg-gray-600">${escapeHtml(t.name)}</span>`
-        ).join('');
-    }
 
     async function loadCollections() {
         const res = await fetch('/api/collections');
@@ -610,6 +604,40 @@
         
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-broom mr-1"></i> Remove Duplicates';
+    }
+
+    async function autoCategorize() {
+        const btn = document.getElementById('auto-cat-btn');
+        const statusDiv = document.getElementById('auto-cat-status');
+        
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Processing...';
+        statusDiv.className = 'text-sm mt-2 bg-gray-800 p-2 rounded';
+        statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Categorizing bookmarks by tags...';
+        
+        try {
+            const res = await fetch('/api/auto-categorize', { method: 'POST' });
+            const data = await res.json();
+            
+            if (data.error) {
+                statusDiv.className = 'text-sm mt-2 bg-red-900 p-2 rounded';
+                statusDiv.innerHTML = '<i class="fas fa-times"></i> ' + data.error;
+            } else {
+                const summary = Object.entries(data.updated)
+                    .filter(([k, v]) => v > 0)
+                    .map(([k, v]) => `${k}: ${v}`)
+                    .join(', ');
+                statusDiv.className = 'text-sm mt-2 bg-green-900 p-2 rounded';
+                statusDiv.innerHTML = `<i class="fas fa-check"></i> Done! Updated: ${summary || 'No changes needed'}`;
+                loadBookmarks(currentSource);
+            }
+        } catch (err) {
+            statusDiv.className = 'text-sm mt-2 bg-red-900 p-2 rounded';
+            statusDiv.innerHTML = '<i class="fas fa-times"></i> Error categorizing bookmarks';
+        }
+        
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-magic mr-1"></i> Auto-Categorize';
     }
 
     async function generateAllMetadata() {
@@ -894,7 +922,6 @@
 
     // Initial load
     loadBookmarks();
-    loadTags();
     loadCollections();
     
     // Register service worker for PWA and share target

@@ -453,6 +453,10 @@ func detectSourceTypeFromTags(tags []string) string {
 			return "unreal"
 		case "rig", "rigging", "model", "models":
 			return "models"
+		case "material", "materials", "texture", "textures", "shader", "shaders":
+			return "materials"
+		case "job", "jobs":
+			return "jobs"
 		}
 	}
 	return ""
@@ -639,4 +643,60 @@ func (s *Server) HandleRemoveDuplicates(w http.ResponseWriter, r *http.Request) 
 	
 	deleted, _ := result.RowsAffected()
 	writeJSON(w, map[string]any{"success": true, "deleted": deleted})
+}
+
+func (s *Server) HandleAutoCategorizeTags(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	updated := make(map[string]int64)
+	
+	// Tag patterns for each source type
+	categories := []struct {
+		SourceType string
+		Patterns   []string
+		Exact      []string
+	}{
+		{"blender", []string{"%blender%"}, nil},
+		{"maya", []string{"%maya%"}, nil},
+		{"unreal", []string{"%unreal%", "%metahuman%", "%merahuman%"}, nil},
+		{"models", nil, []string{"rig", "rigging", "model", "models", "modeling", "mocap", "movap", "animation", "hair", "hair groom", "clothing", "hamds"}},
+		{"materials", []string{"%texture%", "%shader%"}, []string{"material", "materials"}},
+		{"ai", []string{"%ai%"}, []string{"comfy", "comfy rig", "prompt", "model gen", "seedance"}},
+		{"3d", []string{"%3d%"}, []string{"houdini", "unity"}},
+		{"jobs", nil, []string{"job", "jobs"}},
+	}
+	
+	for _, cat := range categories {
+		var conditions []string
+		var args []interface{}
+		
+		for _, pattern := range cat.Patterns {
+			conditions = append(conditions, "LOWER(t.name) LIKE ?")
+			args = append(args, pattern)
+		}
+		for _, exact := range cat.Exact {
+			conditions = append(conditions, "LOWER(t.name) = ?")
+			args = append(args, exact)
+		}
+		
+		if len(conditions) == 0 {
+			continue
+		}
+		
+		query := `
+			UPDATE bookmarks SET source_type = ? 
+			WHERE id IN (
+				SELECT DISTINCT bt.bookmark_id FROM bookmark_tags bt
+				JOIN tags t ON bt.tag_id = t.id
+				WHERE ` + strings.Join(conditions, " OR ") + `
+			)`
+		
+		allArgs := append([]interface{}{cat.SourceType}, args...)
+		result, err := s.DB.ExecContext(ctx, query, allArgs...)
+		if err == nil {
+			count, _ := result.RowsAffected()
+			updated[cat.SourceType] = count
+		}
+	}
+	
+	writeJSON(w, map[string]any{"success": true, "updated": updated})
 }
