@@ -1,6 +1,3 @@
-// API base URL - change this to your server
-const API_BASE = 'https://bookmark-manager.exe.xyz';
-
     let currentSource = '';
     let debounceTimer;
     let selectionMode = false;
@@ -29,16 +26,14 @@ const API_BASE = 'https://bookmark-manager.exe.xyz';
         loading.classList.remove('hidden');
         grid.innerHTML = '';
         
-        // "Things to Try" and "AI" show bookmarks by tag
+        // "Things to Try" shows bookmarks tagged with "try"
         let url;
         if (source === 'things-to-try') {
-            url = API_BASE + '/api/bookmarks?tag=try';
-        } else if (source === 'ai') {
-            url = API_BASE + '/api/bookmarks?tag=ai';
+            url = '/api/bookmarks?tag=try';
         } else if (source) {
-            url = `${API_BASE}/api/bookmarks?source=${source}`;
+            url = `/api/bookmarks?source=${source}`;
         } else {
-            url = API_BASE + '/api/bookmarks';
+            url = '/api/bookmarks';
         }
         const res = await fetch(url);
         const bookmarks = await res.json();
@@ -71,8 +66,7 @@ const API_BASE = 'https://bookmark-manager.exe.xyz';
                           b.source_type === 'linkedin' ? 'fab fa-linkedin' : 
                           b.source_type === 'youtube' ? 'fab fa-youtube' : 
                           b.source_type === '3d' ? 'fas fa-cube' :
-                          b.source_type === 'things-to-try' ? 'fas fa-flask' :
-                          b.source_type === 'ai' ? 'fas fa-robot' : 'fas fa-globe';
+                          b.source_type === 'things-to-try' ? 'fas fa-flask' : 'fas fa-globe';
         
         // Use favicon if available, otherwise show source icon
         const faviconHtml = b.favicon_url 
@@ -109,7 +103,7 @@ const API_BASE = 'https://bookmark-manager.exe.xyz';
     }
 
     async function viewBookmark(id) {
-        const res = await fetch(`${API_BASE}/api/bookmarks/${id}`);
+        const res = await fetch(`/api/bookmarks/${id}`);
         const data = await res.json();
         const b = data.bookmark;
         const tags = data.tags || [];
@@ -198,7 +192,7 @@ const API_BASE = 'https://bookmark-manager.exe.xyz';
         summaryEl.innerHTML = '<span class="text-gray-400"><i class="fas fa-spinner fa-spin"></i> Fetching and analyzing content...</span>';
         
         try {
-            const res = await fetch(`${API_BASE}/api/bookmarks/${id}/analyze`, { method: 'POST' });
+            const res = await fetch(`/api/bookmarks/${id}/analyze`, { method: 'POST' });
             const data = await res.json();
             
             if (data.error) {
@@ -221,7 +215,7 @@ const API_BASE = 'https://bookmark-manager.exe.xyz';
 
     async function deleteBookmark(id) {
         if (!confirm('Delete this bookmark?')) return;
-        await fetch(`${API_BASE}/api/bookmarks/${id}`, { method: 'DELETE' });
+        await fetch(`/api/bookmarks/${id}`, { method: 'DELETE' });
         hideViewModal();
         loadBookmarks(currentSource);
     }
@@ -232,7 +226,7 @@ const API_BASE = 'https://bookmark-manager.exe.xyz';
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
         
         try {
-            await fetch(`${API_BASE}/api/bookmarks/${id}/tag/try`, { method: 'POST' });
+            await fetch(`/api/bookmarks/${id}/tag/try`, { method: 'POST' });
             btn.innerHTML = '<i class="fas fa-check"></i> Added!';
             btn.classList.remove('bg-purple-600', 'hover:bg-purple-700');
             btn.classList.add('bg-green-600');
@@ -248,7 +242,7 @@ const API_BASE = 'https://bookmark-manager.exe.xyz';
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
         
         try {
-            await fetch(`${API_BASE}/api/bookmarks/${id}/tag/try`, { method: 'DELETE' });
+            await fetch(`/api/bookmarks/${id}/tag/try`, { method: 'DELETE' });
             btn.innerHTML = '<i class="fas fa-check"></i> Done!';
             // Close modal and refresh if we're in Things to Try view
             setTimeout(() => {
@@ -263,7 +257,7 @@ const API_BASE = 'https://bookmark-manager.exe.xyz';
 
     async function deleteBookmarkDirect(id) {
         if (!confirm('Delete this bookmark?')) return;
-        await fetch(`${API_BASE}/api/bookmarks/${id}`, { method: 'DELETE' });
+        await fetch(`/api/bookmarks/${id}`, { method: 'DELETE' });
         loadBookmarks(currentSource);
     }
 
@@ -310,7 +304,7 @@ const API_BASE = 'https://bookmark-manager.exe.xyz';
         const url = document.querySelector('input[name="url"]').value;
         if (!url) return;
         
-        const res = await fetch(API_BASE + '/api/fetch-metadata', {
+        const res = await fetch('/api/fetch-metadata', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ url })
@@ -331,7 +325,7 @@ const API_BASE = 'https://bookmark-manager.exe.xyz';
             tags: form.tags.value.split(',').map(t => t.trim()).filter(Boolean)
         };
         
-        await fetch(API_BASE + '/api/bookmarks', {
+        await fetch('/api/bookmarks', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
@@ -354,7 +348,7 @@ const API_BASE = 'https://bookmark-manager.exe.xyz';
         }
         
         const grid = document.getElementById('bookmarks-grid');
-        const res = await fetch(`${API_BASE}/api/search?q=${encodeURIComponent(query)}`);
+        const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
         const data = await res.json();
         
         grid.innerHTML = '';
@@ -362,7 +356,7 @@ const API_BASE = 'https://bookmark-manager.exe.xyz';
     }
 
     async function loadTags() {
-        const res = await fetch(API_BASE + '/api/tags');
+        const res = await fetch('/api/tags');
         const tags = await res.json();
         const container = document.getElementById('tags-list');
         container.innerHTML = (tags || []).map(t => 
@@ -371,7 +365,7 @@ const API_BASE = 'https://bookmark-manager.exe.xyz';
     }
 
     async function loadCollections() {
-        const res = await fetch(API_BASE + '/api/collections');
+        const res = await fetch('/api/collections');
         const collections = await res.json();
         const container = document.getElementById('collections-list');
         container.innerHTML = (collections || []).map(c => 
@@ -390,7 +384,7 @@ const API_BASE = 'https://bookmark-manager.exe.xyz';
         loading.classList.remove('hidden');
         grid.innerHTML = '';
         
-        const res = await fetch(`${API_BASE}/api/collections/${collectionId}/bookmarks`);
+        const res = await fetch(`/api/collections/${collectionId}/bookmarks`);
         const bookmarks = await res.json();
         
         loading.classList.add('hidden');
@@ -427,7 +421,7 @@ const API_BASE = 'https://bookmark-manager.exe.xyz';
         const resultsDiv = document.getElementById('web-search-results');
         resultsDiv.innerHTML = '<div class="text-center py-4"><i class="fas fa-spinner fa-spin"></i> Searching...</div>';
         
-        const res = await fetch(`${API_BASE}/api/web-search?q=${encodeURIComponent(query)}`);
+        const res = await fetch(`/api/web-search?q=${encodeURIComponent(query)}`);
         const data = await res.json();
         
         if (!data.results || data.results.length === 0) {
@@ -460,7 +454,7 @@ const API_BASE = 'https://bookmark-manager.exe.xyz';
     }
 
     async function quickSaveBookmark(url, title, description) {
-        await fetch(API_BASE + '/api/bookmarks', {
+        await fetch('/api/bookmarks', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ url, title, description })
@@ -475,7 +469,7 @@ const API_BASE = 'https://bookmark-manager.exe.xyz';
 
     // GitHub Integration
     function loadGitHubConfig() {
-        fetch(API_BASE + '/api/github/config').then(r => r.json()).then(data => {
+        fetch('/api/github/config').then(r => r.json()).then(data => {
             if (data.repo) document.getElementById('github-repo').value = data.repo;
             if (data.token) document.getElementById('github-token').value = data.token;
             if (data.branch) document.getElementById('github-branch').value = data.branch;
@@ -497,7 +491,7 @@ const API_BASE = 'https://bookmark-manager.exe.xyz';
         statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving configuration...';
         
         try {
-            const res = await fetch(API_BASE + '/api/github/config', {
+            const res = await fetch('/api/github/config', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ repo, token, branch })
@@ -523,7 +517,7 @@ const API_BASE = 'https://bookmark-manager.exe.xyz';
         statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Pulling from GitHub...';
         
         try {
-            const res = await fetch(API_BASE + '/api/github/pull', { method: 'POST' });
+            const res = await fetch('/api/github/pull', { method: 'POST' });
             const data = await res.json();
             
             if (data.error) {
@@ -548,7 +542,7 @@ const API_BASE = 'https://bookmark-manager.exe.xyz';
         statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Pushing to GitHub...';
         
         try {
-            const res = await fetch(API_BASE + '/api/github/push', {
+            const res = await fetch('/api/github/push', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ message })
@@ -577,40 +571,6 @@ const API_BASE = 'https://bookmark-manager.exe.xyz';
         loadGitHubConfig();
     };
 
-    async function removeDuplicates() {
-        const btn = document.getElementById('remove-dupes-btn');
-        const statusDiv = document.getElementById('remove-dupes-status');
-        
-        if (!confirm('This will remove all duplicate bookmarks (same URL), keeping the oldest one. Continue?')) {
-            return;
-        }
-        
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Processing...';
-        statusDiv.className = 'text-sm mt-2 bg-gray-800 p-2 rounded';
-        statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Finding and removing duplicates...';
-        
-        try {
-            const res = await fetch(API_BASE + '/api/remove-duplicates', { method: 'POST' });
-            const data = await res.json();
-            
-            if (data.error) {
-                statusDiv.className = 'text-sm mt-2 bg-red-900 p-2 rounded';
-                statusDiv.innerHTML = '<i class="fas fa-times"></i> ' + data.error;
-            } else {
-                statusDiv.className = 'text-sm mt-2 bg-green-900 p-2 rounded';
-                statusDiv.innerHTML = `<i class="fas fa-check"></i> Done! Removed ${data.deleted} duplicate bookmarks.`;
-                loadBookmarks(currentSource);
-            }
-        } catch (err) {
-            statusDiv.className = 'text-sm mt-2 bg-red-900 p-2 rounded';
-            statusDiv.innerHTML = '<i class="fas fa-times"></i> Error removing duplicates';
-        }
-        
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-broom mr-1"></i> Remove Duplicates';
-    }
-
     async function generateAllMetadata() {
         const btn = document.getElementById('generate-all-btn');
         const statusDiv = document.getElementById('generate-all-status');
@@ -621,7 +581,7 @@ const API_BASE = 'https://bookmark-manager.exe.xyz';
         statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating metadata for all bookmarks... This may take a while.';
         
         try {
-            const res = await fetch(API_BASE + '/api/generate-all', { method: 'POST' });
+            const res = await fetch('/api/generate-all', { method: 'POST' });
             const data = await res.json();
             
             if (data.error) {
@@ -657,7 +617,7 @@ const API_BASE = 'https://bookmark-manager.exe.xyz';
         formData.append('file', fileInput.files[0]);
         
         try {
-            const res = await fetch(API_BASE + '/api/instagram/import', {
+            const res = await fetch('/api/instagram/import', {
                 method: 'POST',
                 body: formData
             });
@@ -694,7 +654,7 @@ const API_BASE = 'https://bookmark-manager.exe.xyz';
         statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Importing playlist...';
         
         try {
-            const res = await fetch(API_BASE + '/api/youtube/import', {
+            const res = await fetch('/api/youtube/import', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -737,14 +697,14 @@ const API_BASE = 'https://bookmark-manager.exe.xyz';
         
         // Fetch metadata first
         try {
-            const metaRes = await fetch(API_BASE + '/api/fetch-metadata', {
+            const metaRes = await fetch('/api/fetch-metadata', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ url })
             });
             const meta = await metaRes.json();
             
-            await fetch(API_BASE + '/api/bookmarks', {
+            await fetch('/api/bookmarks', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -821,7 +781,7 @@ const API_BASE = 'https://bookmark-manager.exe.xyz';
     }
     
     async function loadCollectionsForDropdown() {
-        const res = await fetch(API_BASE + '/api/collections');
+        const res = await fetch('/api/collections');
         const collections = await res.json();
         const select = document.getElementById('add-to-collection');
         select.innerHTML = '<option value="">Add to collection...</option>';
@@ -835,7 +795,7 @@ const API_BASE = 'https://bookmark-manager.exe.xyz';
         const category = select.value;
         if (!category || selectedBookmarks.size === 0) return;
         
-        await fetch(API_BASE + '/api/bookmarks/bulk-update', {
+        await fetch('/api/bookmarks/bulk-update', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
@@ -854,7 +814,7 @@ const API_BASE = 'https://bookmark-manager.exe.xyz';
         const collectionId = select.value;
         if (!collectionId || selectedBookmarks.size === 0) return;
         
-        await fetch(`${API_BASE}/api/collections/${collectionId}/bookmarks`, {
+        await fetch(`/api/collections/${collectionId}/bookmarks`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
@@ -872,7 +832,7 @@ const API_BASE = 'https://bookmark-manager.exe.xyz';
         if (!confirm(`Delete ${selectedBookmarks.size} bookmarks?`)) return;
         
         for (const id of selectedBookmarks) {
-            await fetch(`${API_BASE}/api/bookmarks/${id}`, {method: 'DELETE'});
+            await fetch(`/api/bookmarks/${id}`, {method: 'DELETE'});
         }
         
         toggleSelectionMode();
@@ -884,7 +844,7 @@ const API_BASE = 'https://bookmark-manager.exe.xyz';
         if (!name) return;
         const icon = prompt('Icon (emoji):', '📁') || '📁';
         
-        fetch(API_BASE + '/api/collections', {
+        fetch('/api/collections', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({name, icon})

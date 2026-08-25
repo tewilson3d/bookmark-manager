@@ -7,8 +7,8 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Bookmarks">
-    <link rel="apple-touch-icon" href="./icon-192.png">
-    <link rel="manifest" href="./manifest.json">
+    <link rel="apple-touch-icon" href="/static/icon-192.png">
+    <link rel="manifest" href="/static/manifest.json">
     <title>Bookmark Manager</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
@@ -19,6 +19,7 @@
         .source-youtube { background: #ff0000; }
         .source-3d { background: #10b981; }
         .source-things-to-try { background: #8b5cf6; }
+        .source-ai { background: #06b6d4; }
         .bookmark-card.selected { ring: 2px; outline: 2px solid #6366f1; }
         .selection-mode .bookmark-card { cursor: pointer; }
         
@@ -97,6 +98,9 @@
                 <button onclick="loadBookmarks('things-to-try'); closeSidebarOnMobile()" class="w-full text-left px-3 py-2 rounded hover:bg-gray-700 flex items-center gap-2">
                     <i class="fas fa-flask"></i> Things to Try
                 </button>
+                <button onclick="loadBookmarks('ai'); closeSidebarOnMobile()" class="w-full text-left px-3 py-2 rounded hover:bg-gray-700 flex items-center gap-2">
+                    <i class="fas fa-robot"></i> AI
+                </button>
                 
                 <div class="border-t border-gray-700 my-4"></div>
                 
@@ -159,6 +163,7 @@
                         <option value="youtube">YouTube</option>
                         <option value="3d">3D</option>
                         <option value="things-to-try">Things to Try</option>
+                        <option value="ai">AI</option>
                     </select>
                     <select id="add-to-collection" onchange="addSelectedToCollection()" class="bg-indigo-700 text-white rounded px-3 py-1 text-sm">
                         <option value="">Add to collection...</option>
@@ -237,6 +242,16 @@
             </div>
             
             <div class="space-y-4">
+                <!-- Remove Duplicates -->
+                <div class="bg-gray-700 rounded-lg p-4">
+                    <h3 class="font-semibold mb-2"><i class="fas fa-clone mr-2 text-orange-400"></i>Remove Duplicates</h3>
+                    <p class="text-gray-400 text-sm mb-3">Find and remove duplicate bookmarks with the same URL, keeping the oldest one.</p>
+                    <button onclick="removeDuplicates()" id="remove-dupes-btn" class="bg-orange-600 hover:bg-orange-700 px-3 py-2 rounded text-sm">
+                        <i class="fas fa-broom mr-1"></i> Remove Duplicates
+                    </button>
+                    <div id="remove-dupes-status" class="text-sm mt-2 hidden"></div>
+                </div>
+
                 <!-- Generate All Metadata -->
                 <div class="bg-gray-700 rounded-lg p-4">
                     <h3 class="font-semibold mb-2"><i class="fas fa-magic mr-2 text-purple-400"></i>Generate All Metadata</h3>
@@ -400,7 +415,7 @@
         </div>
     </div>
 
-    <script src="./app.js"></script>
+    <script src="/static/app.js"></script>
 
 </body>
 </html>
