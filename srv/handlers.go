@@ -444,6 +444,18 @@ func detectSourceType(url string) string {
 func detectSourceTypeFromTags(tags []string) string {
 	for _, tag := range tags {
 		lowerTag := strings.ToLower(strings.TrimSpace(tag))
+		// Padded so " rig " matches "rig" and "control rig" but not "trigger"
+		padded := " " + lowerTag + " "
+		switch {
+		case strings.Contains(lowerTag, "game") || strings.Contains(lowerTag, "gaming"):
+			return "games"
+		case strings.Contains(lowerTag, "houdini") || strings.Contains(lowerTag, "sidefx"):
+			return "houdini"
+		case strings.Contains(padded, " rig ") || strings.Contains(padded, " rigs ") ||
+			strings.Contains(lowerTag, "rigging") || strings.Contains(lowerTag, "rigged") ||
+			strings.Contains(lowerTag, "rigify"):
+			return "rigging"
+		}
 		switch lowerTag {
 		case "blender":
 			return "blender"
@@ -451,7 +463,7 @@ func detectSourceTypeFromTags(tags []string) string {
 			return "maya"
 		case "unreal":
 			return "unreal"
-		case "rig", "rigging", "model", "models":
+		case "model", "models":
 			return "models"
 		case "material", "materials", "texture", "textures", "shader", "shaders":
 			return "materials"
@@ -649,7 +661,9 @@ func (s *Server) HandleAutoCategorizeTags(w http.ResponseWriter, r *http.Request
 	ctx := r.Context()
 	updated := make(map[string]int64)
 	
-	// Tag patterns for each source type
+	// Tag patterns for each source type. Later entries win when a bookmark
+	// matches several, so the specific categories come after the broad ones.
+	// Patterns match the tag padded with spaces, so "% rig %" is a whole word.
 	categories := []struct {
 		SourceType string
 		Patterns   []string
@@ -658,19 +672,22 @@ func (s *Server) HandleAutoCategorizeTags(w http.ResponseWriter, r *http.Request
 		{"blender", []string{"%blender%"}, nil},
 		{"maya", []string{"%maya%"}, nil},
 		{"unreal", []string{"%unreal%", "%metahuman%", "%merahuman%"}, nil},
-		{"models", nil, []string{"rig", "rigging", "model", "models", "modeling", "mocap", "movap", "animation", "hair", "hair groom", "clothing", "hamds"}},
+		{"models", nil, []string{"model", "models", "modeling", "mocap", "movap", "animation", "hair", "hair groom", "clothing", "hamds"}},
 		{"materials", []string{"%texture%", "%shader%"}, []string{"material", "materials"}},
 		{"ai", []string{"%ai%"}, []string{"comfy", "comfy rig", "prompt", "model gen", "seedance"}},
-		{"3d", []string{"%3d%"}, []string{"houdini", "unity"}},
+		{"3d", []string{"%3d%"}, []string{"unity"}},
+		{"houdini", []string{"%houdini%", "%sidefx%"}, nil},
+		{"rigging", []string{"% rig %", "% rigs %", "%rigging%", "%rigged%", "%rigify%"}, nil},
+		{"games", []string{"%game%", "%gaming%"}, nil},
 		{"jobs", nil, []string{"job", "jobs"}},
 	}
-	
+
 	for _, cat := range categories {
 		var conditions []string
 		var args []interface{}
-		
+
 		for _, pattern := range cat.Patterns {
-			conditions = append(conditions, "LOWER(t.name) LIKE ?")
+			conditions = append(conditions, "(' ' || LOWER(t.name) || ' ') LIKE ?")
 			args = append(args, pattern)
 		}
 		for _, exact := range cat.Exact {

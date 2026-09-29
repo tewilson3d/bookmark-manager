@@ -26,6 +26,9 @@
         .source-models { background: #e91e63; }
         .source-materials { background: #9c27b0; }
         .source-jobs { background: #f59e0b; }
+        .source-houdini { background: #ff4713; }
+        .source-rigging { background: #84cc16; }
+        .source-games { background: #f43f5e; }
         .bookmark-card.selected { ring: 2px; outline: 2px solid #6366f1; }
         .selection-mode .bookmark-card { cursor: pointer; }
         
@@ -122,6 +125,15 @@
                 <button onclick="loadBookmarks('materials'); closeSidebarOnMobile()" class="w-full text-left px-3 py-2 rounded hover:bg-gray-700 flex items-center gap-2">
                     <i class="fas fa-fill-drip"></i> Materials
                 </button>
+                <button onclick="loadBookmarks('houdini'); closeSidebarOnMobile()" class="w-full text-left px-3 py-2 rounded hover:bg-gray-700 flex items-center gap-2">
+                    <i class="fas fa-hurricane"></i> Houdini
+                </button>
+                <button onclick="loadBookmarks('rigging'); closeSidebarOnMobile()" class="w-full text-left px-3 py-2 rounded hover:bg-gray-700 flex items-center gap-2">
+                    <i class="fas fa-bone"></i> Rigging
+                </button>
+                <button onclick="loadBookmarks('games'); closeSidebarOnMobile()" class="w-full text-left px-3 py-2 rounded hover:bg-gray-700 flex items-center gap-2">
+                    <i class="fas fa-dice"></i> Games
+                </button>
                 <button onclick="loadBookmarks('jobs'); closeSidebarOnMobile()" class="w-full text-left px-3 py-2 rounded hover:bg-gray-700 flex items-center gap-2">
                     <i class="fas fa-briefcase"></i> Jobs
                 </button>
@@ -192,6 +204,9 @@
                         <option value="unreal">Unreal</option>
                         <option value="models">Models</option>
                         <option value="materials">Materials</option>
+                        <option value="houdini">Houdini</option>
+                        <option value="rigging">Rigging</option>
+                        <option value="games">Games</option>
                         <option value="jobs">Jobs</option>
                     </select>
                     <select id="add-to-collection" onchange="addSelectedToCollection()" class="bg-indigo-700 text-white rounded px-3 py-1 text-sm">
@@ -284,7 +299,7 @@
                 <!-- Auto-Categorize by Tags -->
                 <div class="bg-gray-700 rounded-lg p-4">
                     <h3 class="font-semibold mb-2"><i class="fas fa-tags mr-2 text-green-400"></i>Auto-Categorize by Tags</h3>
-                    <p class="text-gray-400 text-sm mb-3">Automatically assign bookmarks to categories based on their tags (Blender, Maya, Unreal, Models, Materials, AI, 3D).</p>
+                    <p class="text-gray-400 text-sm mb-3">Automatically assign bookmarks to categories based on their tags (Blender, Maya, Unreal, Models, Materials, AI, 3D, Houdini, Rigging, Games, Jobs).</p>
                     <button onclick="autoCategorize()" id="auto-cat-btn" class="bg-green-600 hover:bg-green-700 px-3 py-2 rounded text-sm">
                         <i class="fas fa-magic mr-1"></i> Auto-Categorize
                     </button>

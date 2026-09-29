@@ -75,6 +75,9 @@
                           b.source_type === 'unreal' ? 'fas fa-gamepad' :
                           b.source_type === 'models' ? 'fas fa-shapes' :
                           b.source_type === 'materials' ? 'fas fa-fill-drip' :
+                          b.source_type === 'houdini' ? 'fas fa-hurricane' :
+                          b.source_type === 'rigging' ? 'fas fa-bone' :
+                          b.source_type === 'games' ? 'fas fa-dice' :
                           b.source_type === 'jobs' ? 'fas fa-briefcase' : 'fas fa-globe';
         
         // Use favicon if available, otherwise show source icon
